@@ -1,6 +1,12 @@
-import { type PointAction, PointTransactionType } from "@prisma/client";
+import {
+  type PointAction,
+  PointTransactionType,
+  type Prisma,
+} from "@prisma/client";
 import { prisma } from "./prisma";
 import { POINT_COSTS } from "./stripe";
+
+type TransactionClient = Prisma.TransactionClient;
 
 export class InsufficientPointsError extends Error {
   constructor(
@@ -120,6 +126,65 @@ export async function consumePoints(
     });
 
     return { newBalance, consumed: cost };
+  });
+
+  return result;
+}
+
+/**
+ * ポイントを消費し、追加の操作をトランザクション内で実行
+ */
+export async function consumePointsWithOperations<T>(
+  recruiterId: string,
+  action: PointAction,
+  operations: (tx: TransactionClient) => Promise<T>,
+  relatedId?: string,
+  description?: string,
+): Promise<{ newBalance: number; consumed: number; result: T }> {
+  const actionKey = action as keyof typeof POINT_COSTS;
+  const cost = POINT_COSTS[actionKey];
+
+  const result = await prisma.$transaction(async (tx) => {
+    const subscription = await tx.subscription.findUnique({
+      where: { recruiterId },
+    });
+
+    if (!subscription) {
+      throw new NoSubscriptionError();
+    }
+
+    if (cost > 0 && subscription.pointBalance < cost) {
+      throw new InsufficientPointsError(cost, subscription.pointBalance);
+    }
+
+    const newBalance = subscription.pointBalance - cost;
+
+    if (cost > 0) {
+      // サブスクリプションの残高を更新
+      await tx.subscription.update({
+        where: { recruiterId },
+        data: { pointBalance: newBalance },
+      });
+
+      // 取引履歴を記録
+      await tx.pointTransaction.create({
+        data: {
+          recruiterId,
+          type: PointTransactionType.CONSUME,
+          action,
+          amount: -cost,
+          balance: newBalance,
+          relatedId,
+          description:
+            description || `${getActionDescription(action)}によるポイント消費`,
+        },
+      });
+    }
+
+    // 追加の操作を実行
+    const operationResult = await operations(tx);
+
+    return { newBalance, consumed: cost, result: operationResult };
   });
 
   return result;

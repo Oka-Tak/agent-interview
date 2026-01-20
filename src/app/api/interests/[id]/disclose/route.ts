@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
   checkPointBalance,
-  consumePoints,
+  consumePointsWithOperations,
   InsufficientPointsError,
   NoSubscriptionError,
 } from "@/lib/points";
@@ -78,34 +78,35 @@ export async function POST(
       );
     }
 
-    // ポイント消費と状態更新をトランザクションで実行
-    await consumePoints(
+    // ポイント消費、ステータス更新、通知作成を単一トランザクションで実行
+    await consumePointsWithOperations(
       session.user.recruiterId,
       "CONTACT_DISCLOSURE",
+      async (tx) => {
+        // ステータスを更新
+        await tx.interest.update({
+          where: { id: interestId },
+          data: { status: "CONTACT_DISCLOSED" },
+        });
+
+        // 求職者に通知
+        await tx.notification.create({
+          data: {
+            accountId: interest.user.accountId,
+            type: "PIPELINE_UPDATE",
+            title: "連絡先が開示されました",
+            body: `${session.user.companyName}に連絡先が開示されました`,
+            data: {
+              interestId: interest.id,
+              recruiterId: session.user.recruiterId,
+              companyName: session.user.companyName,
+            },
+          },
+        });
+      },
       interestId,
       `連絡先開示: ${interest.user.name}`,
     );
-
-    // ステータスを更新
-    await prisma.interest.update({
-      where: { id: interestId },
-      data: { status: "CONTACT_DISCLOSED" },
-    });
-
-    // 求職者に通知
-    await prisma.notification.create({
-      data: {
-        accountId: interest.user.accountId,
-        type: "PIPELINE_UPDATE",
-        title: "連絡先が開示されました",
-        body: `${session.user.companyName}に連絡先が開示されました`,
-        data: {
-          interestId: interest.id,
-          recruiterId: session.user.recruiterId,
-          companyName: session.user.companyName,
-        },
-      },
-    });
 
     return NextResponse.json({
       contact: {
