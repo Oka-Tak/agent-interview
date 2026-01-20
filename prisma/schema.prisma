@@ -1,0 +1,222 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountType {
+  USER
+  RECRUITER
+}
+
+enum ExperienceType {
+  WORK
+  EDUCATION
+  PROJECT
+  OTHER
+}
+
+enum FragmentType {
+  ACHIEVEMENT
+  ACTION
+  CHALLENGE
+  LEARNING
+  VALUE
+  EMOTION
+  FACT
+  SKILL_USAGE
+}
+
+enum SourceType {
+  CONVERSATION
+  DOCUMENT
+  MANUAL
+}
+
+enum AgentStatus {
+  PRIVATE
+  PUBLIC
+}
+
+enum SessionType {
+  USER_AI_CHAT
+  RECRUITER_AGENT_CHAT
+}
+
+enum SenderType {
+  USER
+  RECRUITER
+  AI
+}
+
+enum RefType {
+  DOCUMENT
+  FRAGMENT
+  AGENT
+}
+
+enum TagCategory {
+  SKILL
+  DOMAIN
+  ATTRIBUTE
+  ROLE
+}
+
+enum TaggableType {
+  DOCUMENT
+  FRAGMENT
+  AGENT_PROFILE
+}
+
+model Account {
+  id          String      @id @default(uuid())
+  email       String      @unique
+  accountType AccountType
+  createdAt   DateTime    @default(now())
+
+  user      User?
+  recruiter Recruiter?
+}
+
+model User {
+  id        String  @id @default(uuid())
+  accountId String  @unique
+  account   Account @relation(fields: [accountId], references: [id])
+  name      String
+
+  documents   Document[]
+  experiences Experience[]
+  fragments   Fragment[]
+  agent       AgentProfile?
+  sessions    Session[]
+}
+
+model Recruiter {
+  id          String  @id @default(uuid())
+  accountId   String  @unique
+  account     Account @relation(fields: [accountId], references: [id])
+  companyName String
+
+  sessions Session[]
+}
+
+model Document {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  fileName  String
+  filePath  String
+  summary   String?
+  createdAt DateTime @default(now())
+}
+
+model Experience {
+  id           String         @id @default(uuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id])
+  type         ExperienceType
+  title        String
+  organization String?
+  role         String?
+  periodStart  DateTime?
+  periodEnd    DateTime?
+  summary      String?
+  createdAt    DateTime       @default(now())
+
+  fragments Fragment[]
+}
+
+model Fragment {
+  id           String       @id @default(uuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id])
+  experienceId String?
+  experience   Experience?  @relation(fields: [experienceId], references: [id])
+  parentId     String?
+  parent       Fragment?    @relation("FragmentHierarchy", fields: [parentId], references: [id])
+  children     Fragment[]   @relation("FragmentHierarchy")
+  depth        Int          @default(0)
+  type         FragmentType
+  content      String
+  metadata     Json?
+  skills       String[]
+  keywords     String[]
+  sourceType   SourceType
+  sourceId     String?
+  confidence   Float        @default(1.0)
+  createdAt    DateTime     @default(now())
+}
+
+model AgentProfile {
+  id           String      @id @default(uuid())
+  userId       String      @unique
+  user         User        @relation(fields: [userId], references: [id])
+  systemPrompt String
+  status       AgentStatus @default(PRIVATE)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  sessions Session[]
+}
+
+model Session {
+  id          String        @id @default(uuid())
+  sessionType SessionType
+  userId      String?
+  user        User?         @relation(fields: [userId], references: [id])
+  recruiterId String?
+  recruiter   Recruiter?    @relation(fields: [recruiterId], references: [id])
+  agentId     String?
+  agent       AgentProfile? @relation(fields: [agentId], references: [id])
+  createdAt   DateTime      @default(now())
+
+  messages Message[]
+}
+
+model Message {
+  id         String     @id @default(uuid())
+  sessionId  String
+  session    Session    @relation(fields: [sessionId], references: [id])
+  senderType SenderType
+  senderId   String?
+  content    String
+  createdAt  DateTime   @default(now())
+
+  references MessageReference[]
+}
+
+model MessageReference {
+  id        String  @id @default(uuid())
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id])
+  refType   RefType
+  refId     String
+}
+
+model Tag {
+  id        String      @id @default(uuid())
+  name      String      @unique
+  category  TagCategory
+  parentId  String?
+  parent    Tag?        @relation("TagHierarchy", fields: [parentId], references: [id])
+  children  Tag[]       @relation("TagHierarchy")
+  aliases   String[]
+  createdAt DateTime    @default(now())
+
+  taggings Tagging[]
+}
+
+model Tagging {
+  id           String       @id @default(uuid())
+  tagId        String
+  tag          Tag          @relation(fields: [tagId], references: [id])
+  taggableType TaggableType
+  taggableId   String
+  confidence   Float        @default(1.0)
+  createdAt    DateTime     @default(now())
+
+  @@unique([tagId, taggableType, taggableId])
+}

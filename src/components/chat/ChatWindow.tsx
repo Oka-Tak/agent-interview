@@ -1,0 +1,107 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { MessageBubble } from "./MessageBubble";
+
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface ChatWindowProps {
+  messages: Message[];
+  onSendMessage: (message: string) => void;
+  isLoading?: boolean;
+  userName?: string;
+  placeholder?: string;
+}
+
+export function ChatWindow({
+  messages,
+  onSendMessage,
+  isLoading = false,
+  userName,
+  placeholder = "メッセージを入力...",
+}: ChatWindowProps) {
+  const [input, setInput] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+    onSendMessage(input.trim());
+    setInput("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        <div className="space-y-4">
+          {messages.length === 0 && (
+            <div className="text-center text-muted-foreground py-8">
+              <p>メッセージはまだありません</p>
+              <p className="text-sm mt-2">AIに話しかけてみましょう</p>
+            </div>
+          )}
+          {messages.map((message) => (
+            <MessageBubble
+              key={message.id}
+              content={message.content}
+              role={message.role}
+              senderName={userName}
+            />
+          ))}
+          {isLoading && (
+            <div className="flex gap-3">
+              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                <span className="text-xs">AI</span>
+              </div>
+              <div className="bg-gray-100 rounded-lg px-4 py-2">
+                <div className="flex gap-1">
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.1s]" />
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+      <form onSubmit={handleSubmit} className="border-t p-4">
+        <div className="flex gap-2">
+          <Textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className="min-h-[60px] resize-none"
+            disabled={isLoading}
+          />
+          <Button type="submit" disabled={!input.trim() || isLoading}>
+            送信
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          Shift+Enterで改行、Enterで送信
+        </p>
+      </form>
+    </div>
+  );
+}
