@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     // 求人フィルタがある場合
     if (jobId) {
-      const job = await prisma.jobPosting.findUnique({
+      const job = await prisma.jobPosting.findFirst({
         where: { id: jobId, recruiterId: session.user.recruiterId },
       });
 
