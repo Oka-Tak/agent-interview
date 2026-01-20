@@ -121,8 +121,8 @@ export default function InterestsPage() {
                   status: "CONTACT_DISCLOSED" as const,
                   user: {
                     ...i.user,
-                    email: data.interest.user.email,
-                    phone: data.interest.user.phone,
+                    email: data.contact.email,
+                    phone: data.contact.phone,
                   },
                 }
               : i,

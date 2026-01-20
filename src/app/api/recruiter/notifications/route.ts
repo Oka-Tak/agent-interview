@@ -49,17 +49,21 @@ export async function GET(request: NextRequest) {
       take: 20,
     });
 
-    // 統合して返す
+    // 統合して返す（UIが期待するフィールド名に変換）
     const notifications = [
       ...watchNotifications.map((n) => ({
         id: n.id,
         type: "NEW_CANDIDATE_MATCH" as const,
         title: "新しい候補者がマッチしました",
-        body: `${n.agent.user.name}さんが「${n.watch.name}」の条件にマッチしました（${Math.round(n.matchScore * 100)}%）`,
-        data: {
-          watchId: n.watch.id,
-          agentId: n.agent.id,
-          matchScore: n.matchScore,
+        message: `${n.agent.user.name}さんが「${n.watch.name}」の条件にマッチしました（${Math.round(n.matchScore * 100)}%）`,
+        watch: {
+          name: n.watch.name,
+        },
+        relatedAgent: {
+          id: n.agent.id,
+          user: {
+            name: n.agent.user.name,
+          },
         },
         isRead: n.isRead,
         createdAt: n.createdAt,
@@ -68,8 +72,9 @@ export async function GET(request: NextRequest) {
         id: n.id,
         type: n.type,
         title: n.title,
-        body: n.body,
-        data: n.data,
+        message: n.body,
+        watch: null,
+        relatedAgent: null,
         isRead: n.isRead,
         createdAt: n.createdAt,
       })),

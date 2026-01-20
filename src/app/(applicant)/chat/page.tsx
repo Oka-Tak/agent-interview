@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -35,6 +35,20 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [fragmentCount, setFragmentCount] = useState(0);
 
+  const fetchFragmentCount = useCallback(async () => {
+    try {
+      const response = await fetch("/api/agents/me");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.fragments) {
+          setFragmentCount(data.fragments.length);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch fragment count:", error);
+    }
+  }, []);
+
   useEffect(() => {
     setMessages([
       {
@@ -43,7 +57,8 @@ export default function ChatPage() {
         content: INITIAL_MESSAGE,
       },
     ]);
-  }, []);
+    fetchFragmentCount();
+  }, [fetchFragmentCount]);
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {

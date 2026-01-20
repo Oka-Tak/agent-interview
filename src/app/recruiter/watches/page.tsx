@@ -4,13 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -20,17 +14,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
 interface Watch {
   id: string;
   name: string;
-  description: string | null;
   skills: string[];
   keywords: string[];
   experienceLevel: string | null;
   isActive: boolean;
-  lastNotifiedAt: string | null;
   createdAt: string;
   _count: {
     notifications: number;
@@ -70,7 +61,6 @@ export default function WatchesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newWatch, setNewWatch] = useState({
     name: "",
-    description: "",
     skills: "",
     keywords: "",
     experienceLevel: "",
@@ -130,7 +120,6 @@ export default function WatchesPage() {
         setIsDialogOpen(false);
         setNewWatch({
           name: "",
-          description: "",
           skills: "",
           keywords: "",
           experienceLevel: "",
@@ -213,18 +202,6 @@ export default function WatchesPage() {
                     setNewWatch({ ...newWatch, name: e.target.value })
                   }
                   placeholder="例: シニアバックエンド候補"
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">説明</Label>
-                <Textarea
-                  id="description"
-                  value={newWatch.description}
-                  onChange={(e) =>
-                    setNewWatch({ ...newWatch, description: e.target.value })
-                  }
-                  placeholder="どのような候補者を探しているか"
-                  rows={2}
                 />
               </div>
               <div>
@@ -313,11 +290,6 @@ export default function WatchesPage() {
                             {watch.isActive ? "アクティブ" : "停止中"}
                           </Badge>
                         </CardTitle>
-                        {watch.description && (
-                          <CardDescription className="mt-1">
-                            {watch.description}
-                          </CardDescription>
-                        )}
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -424,7 +396,7 @@ export default function WatchesPage() {
                           </p>
                           {notification.relatedAgent && (
                             <Link
-                              href={`/recruiter/agents/${notification.relatedAgent.id}`}
+                              href={`/recruiter/interview/${notification.relatedAgent.id}`}
                               className="text-xs text-primary hover:underline mt-1 inline-block"
                             >
                               {notification.relatedAgent.user.name} を見る
