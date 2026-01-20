@@ -101,7 +101,9 @@ model Recruiter {
   account     Account @relation(fields: [accountId], references: [id])
   companyName String
 
-  sessions Session[]
+  sessions    Session[]
+  notes       InterviewNote[]
+  evaluations InterviewEvaluation[]
 }
 
 model Document {
@@ -174,7 +176,9 @@ model Session {
   agent       AgentProfile? @relation(fields: [agentId], references: [id])
   createdAt   DateTime      @default(now())
 
-  messages Message[]
+  messages   Message[]
+  notes      InterviewNote[]
+  evaluation InterviewEvaluation?
 }
 
 model Message {
@@ -220,4 +224,31 @@ model Tagging {
   createdAt    DateTime     @default(now())
 
   @@unique([tagId, taggableType, taggableId])
+}
+
+model InterviewNote {
+  id          String    @id @default(uuid())
+  sessionId   String
+  session     Session   @relation(fields: [sessionId], references: [id])
+  recruiterId String
+  recruiter   Recruiter @relation(fields: [recruiterId], references: [id])
+  content     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model InterviewEvaluation {
+  id              String    @id @default(uuid())
+  sessionId       String    @unique
+  session         Session   @relation(fields: [sessionId], references: [id])
+  recruiterId     String
+  recruiter       Recruiter @relation(fields: [recruiterId], references: [id])
+  overallRating   Int       // 1-5
+  technicalRating Int       // 1-5
+  communicationRating Int   // 1-5
+  cultureRating   Int       // 1-5
+  matchScore      Float?    // AIによるマッチ度スコア
+  comment         String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }

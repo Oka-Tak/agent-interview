@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Message {
   id: string;
@@ -34,6 +36,22 @@ interface AgentInfo {
   }[];
 }
 
+interface Note {
+  id: string;
+  content: string;
+  createdAt: string;
+}
+
+interface Evaluation {
+  id: string;
+  overallRating: number;
+  technicalRating: number;
+  communicationRating: number;
+  cultureRating: number;
+  matchScore: number | null;
+  comment: string | null;
+}
+
 export default function InterviewPage({
   params,
 }: {
@@ -45,6 +63,20 @@ export default function InterviewPage({
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
+
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [newNote, setNewNote] = useState("");
+  const [isAddingNote, setIsAddingNote] = useState(false);
+
+  const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
+  const [evalForm, setEvalForm] = useState({
+    overallRating: 3,
+    technicalRating: 3,
+    communicationRating: 3,
+    cultureRating: 3,
+    comment: "",
+  });
+  const [isSavingEval, setIsSavingEval] = useState(false);
 
   const fetchAgentInfo = useCallback(async () => {
     try {
@@ -80,10 +112,45 @@ export default function InterviewPage({
     }
   }, [resolvedParams.id]);
 
+  const fetchNotes = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/interview/${resolvedParams.id}/notes`);
+      if (response.ok) {
+        const data = await response.json();
+        setNotes(data.notes);
+      }
+    } catch (error) {
+      console.error("Failed to fetch notes:", error);
+    }
+  }, [resolvedParams.id]);
+
+  const fetchEvaluation = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/interview/${resolvedParams.id}/evaluation`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.evaluation) {
+          setEvaluation(data.evaluation);
+          setEvalForm({
+            overallRating: data.evaluation.overallRating,
+            technicalRating: data.evaluation.technicalRating,
+            communicationRating: data.evaluation.communicationRating,
+            cultureRating: data.evaluation.cultureRating,
+            comment: data.evaluation.comment || "",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch evaluation:", error);
+    }
+  }, [resolvedParams.id]);
+
   useEffect(() => {
     fetchAgentInfo();
     fetchMessages();
-  }, [fetchAgentInfo, fetchMessages]);
+    fetchNotes();
+    fetchEvaluation();
+  }, [fetchAgentInfo, fetchMessages, fetchNotes, fetchEvaluation]);
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -128,6 +195,77 @@ export default function InterviewPage({
       setIsLoading(false);
     }
   };
+
+  const handleAddNote = async () => {
+    if (!newNote.trim()) return;
+    setIsAddingNote(true);
+    try {
+      const response = await fetch(`/api/interview/${resolvedParams.id}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newNote }),
+      });
+      if (response.ok) {
+        setNewNote("");
+        fetchNotes();
+      }
+    } catch (error) {
+      console.error("Failed to add note:", error);
+    } finally {
+      setIsAddingNote(false);
+    }
+  };
+
+  const handleSaveEvaluation = async () => {
+    setIsSavingEval(true);
+    try {
+      const response = await fetch(`/api/interview/${resolvedParams.id}/evaluation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(evalForm),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setEvaluation(data.evaluation);
+        alert("評価を保存しました");
+      }
+    } catch (error) {
+      console.error("Failed to save evaluation:", error);
+    } finally {
+      setIsSavingEval(false);
+    }
+  };
+
+  const RatingInput = ({
+    label,
+    value,
+    onChange,
+  }: {
+    label: string;
+    value: number;
+    onChange: (v: number) => void;
+  }) => (
+    <div className="space-y-1">
+      <div className="flex justify-between">
+        <span className="text-sm">{label}</span>
+        <span className="text-sm font-medium">{value}/5</span>
+      </div>
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            className={`w-8 h-8 rounded ${
+              n <= value ? "bg-primary text-white" : "bg-gray-200"
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
   if (isFetching) {
     return (
@@ -202,62 +340,115 @@ export default function InterviewPage({
             </CardContent>
           </Card>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto">
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="text-lg">候補者情報</CardTitle>
-              <CardDescription>
-                AIが収集した情報
-              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium mb-2">スキル</p>
-                  <div className="flex flex-wrap gap-1">
-                    {allSkills.size > 0 ? (
-                      Array.from(allSkills).map((skill) => (
-                        <Badge key={skill} variant="secondary" className="text-xs">
-                          {skill}
-                        </Badge>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        情報なし
-                      </p>
-                    )}
-                  </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">スキル</p>
+                <div className="flex flex-wrap gap-1">
+                  {allSkills.size > 0 ? (
+                    Array.from(allSkills).map((skill) => (
+                      <Badge key={skill} variant="secondary" className="text-xs">
+                        {skill}
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">情報なし</p>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">面接のヒント</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">メモ・評価</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                以下のような質問を試してみてください：
-              </p>
-              <ul className="text-sm space-y-2">
-                <li className="flex items-start gap-2">
-                  <span className="text-primary">•</span>
-                  これまでの経験について教えてください
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary">•</span>
-                  得意な技術は何ですか？
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary">•</span>
-                  印象に残っているプロジェクトは？
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary">•</span>
-                  今後のキャリア目標を教えてください
-                </li>
-              </ul>
+            <CardContent>
+              <Tabs defaultValue="notes">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="notes">メモ</TabsTrigger>
+                  <TabsTrigger value="evaluation">評価</TabsTrigger>
+                </TabsList>
+                <TabsContent value="notes" className="space-y-3 mt-3">
+                  <div className="space-y-2">
+                    <Textarea
+                      value={newNote}
+                      onChange={(e) => setNewNote(e.target.value)}
+                      placeholder="メモを入力..."
+                      className="min-h-[80px]"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleAddNote}
+                      disabled={!newNote.trim() || isAddingNote}
+                    >
+                      {isAddingNote ? "追加中..." : "メモを追加"}
+                    </Button>
+                  </div>
+                  {notes.length > 0 && (
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                      {notes.map((note) => (
+                        <div key={note.id} className="p-2 bg-gray-50 rounded text-sm">
+                          <p>{note.content}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(note.createdAt).toLocaleString("ja-JP")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+                <TabsContent value="evaluation" className="space-y-4 mt-3">
+                  <RatingInput
+                    label="総合評価"
+                    value={evalForm.overallRating}
+                    onChange={(v) => setEvalForm({ ...evalForm, overallRating: v })}
+                  />
+                  <RatingInput
+                    label="技術力"
+                    value={evalForm.technicalRating}
+                    onChange={(v) => setEvalForm({ ...evalForm, technicalRating: v })}
+                  />
+                  <RatingInput
+                    label="コミュニケーション"
+                    value={evalForm.communicationRating}
+                    onChange={(v) => setEvalForm({ ...evalForm, communicationRating: v })}
+                  />
+                  <RatingInput
+                    label="カルチャーフィット"
+                    value={evalForm.cultureRating}
+                    onChange={(v) => setEvalForm({ ...evalForm, cultureRating: v })}
+                  />
+                  <div className="space-y-1">
+                    <span className="text-sm">コメント</span>
+                    <Textarea
+                      value={evalForm.comment}
+                      onChange={(e) => setEvalForm({ ...evalForm, comment: e.target.value })}
+                      placeholder="評価コメント..."
+                      className="min-h-[60px]"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleSaveEvaluation}
+                    disabled={isSavingEval}
+                    className="w-full"
+                  >
+                    {isSavingEval ? "保存中..." : "評価を保存"}
+                  </Button>
+                  {evaluation?.matchScore && (
+                    <div className="p-3 bg-primary/10 rounded-lg">
+                      <p className="text-sm font-medium">AIマッチ度スコア</p>
+                      <p className="text-2xl font-bold text-primary">
+                        {evaluation.matchScore}%
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </div>
