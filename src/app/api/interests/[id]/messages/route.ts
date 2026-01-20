@@ -199,6 +199,12 @@ export async function POST(
       },
     });
 
+    // 興味表明のupdatedAtを更新（ソート順に反映）
+    await prisma.interest.update({
+      where: { id: interestId },
+      data: { updatedAt: new Date() },
+    });
+
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {
     console.error("Send message error:", error);
