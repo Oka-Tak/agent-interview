@@ -36,6 +36,12 @@ services:
       timeout: 5s
       retries: 5
 
+  stripe-mock:
+    image: stripe/stripe-mock:latest
+    container_name: agent-interview-stripe
+    ports:
+      - "12111:12111"
+
 volumes:
   postgres_data:
   minio_data:
