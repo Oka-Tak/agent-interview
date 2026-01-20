@@ -155,13 +155,13 @@ export default function DocumentsPage() {
             <DialogHeader>
               <DialogTitle>ドキュメントをアップロード</DialogTitle>
               <DialogDescription>
-                PDF、Word、テキストファイルをアップロードできます
+                PDF、テキスト、Markdownファイルをアップロードできます
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <Input
                 type="file"
-                accept=".pdf,.doc,.docx,.txt"
+                accept=".pdf,.txt,.md"
                 onChange={handleFileUpload}
                 disabled={isUploading}
               />
