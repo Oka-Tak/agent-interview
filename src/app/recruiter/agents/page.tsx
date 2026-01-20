@@ -22,6 +22,9 @@ interface Agent {
     id: string;
     name: string;
   };
+  skills: string[];
+  matchScore: number | null;
+  matchReasons: string[];
 }
 
 interface Interest {
@@ -30,18 +33,42 @@ interface Interest {
   status: string;
 }
 
+interface JobPosting {
+  id: string;
+  title: string;
+  status: string;
+}
+
 export default function AgentsListPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [interests, setInterests] = useState<Interest[]>([]);
+  const [jobs, setJobs] = useState<JobPosting[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [processingAgentId, setProcessingAgentId] = useState<string | null>(
     null,
   );
 
-  const fetchAgents = useCallback(async () => {
+  const fetchJobs = useCallback(async () => {
     try {
-      const response = await fetch("/api/agents/public");
+      const response = await fetch("/api/recruiter/jobs");
+      if (response.ok) {
+        const data = await response.json();
+        setJobs(data.jobs.filter((j: JobPosting) => j.status === "ACTIVE"));
+      }
+    } catch (error) {
+      console.error("Failed to fetch jobs:", error);
+    }
+  }, []);
+
+  const fetchAgents = useCallback(async (jobId?: string) => {
+    try {
+      setIsLoading(true);
+      const url = jobId
+        ? `/api/agents/public?jobId=${jobId}`
+        : "/api/agents/public";
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setAgents(data.agents);
@@ -68,7 +95,12 @@ export default function AgentsListPage() {
   useEffect(() => {
     fetchAgents();
     fetchInterests();
-  }, [fetchAgents, fetchInterests]);
+    fetchJobs();
+  }, [fetchAgents, fetchInterests, fetchJobs]);
+
+  useEffect(() => {
+    fetchAgents(selectedJobId || undefined);
+  }, [selectedJobId, fetchAgents]);
 
   const handleExpressInterest = async (agentId: string) => {
     setProcessingAgentId(agentId);
@@ -111,13 +143,34 @@ export default function AgentsListPage() {
         </p>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-wrap gap-4">
         <Input
           placeholder="名前で検索..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="max-w-sm"
         />
+        <select
+          value={selectedJobId}
+          onChange={(e) => setSelectedJobId(e.target.value)}
+          className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm min-w-[200px]"
+        >
+          <option value="">すべてのエージェント</option>
+          {jobs.map((job) => (
+            <option key={job.id} value={job.id}>
+              {job.title}にマッチ
+            </option>
+          ))}
+        </select>
+        {selectedJobId && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedJobId("")}
+          >
+            フィルターをクリア
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -158,8 +211,23 @@ export default function AgentsListPage() {
                       {agent.user.name[0]}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <CardTitle>{agent.user.name}</CardTitle>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <CardTitle>{agent.user.name}</CardTitle>
+                      {agent.matchScore !== null && (
+                        <Badge
+                          variant={
+                            agent.matchScore >= 0.7
+                              ? "default"
+                              : agent.matchScore >= 0.4
+                                ? "secondary"
+                                : "outline"
+                          }
+                        >
+                          {Math.round(agent.matchScore * 100)}%マッチ
+                        </Badge>
+                      )}
+                    </div>
                     <CardDescription>
                       更新日:{" "}
                       {new Date(agent.updatedAt).toLocaleDateString("ja-JP")}
@@ -167,7 +235,37 @@ export default function AgentsListPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                {/* スキル表示 */}
+                {agent.skills && agent.skills.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {agent.skills.slice(0, 5).map((skill) => (
+                      <Badge key={skill} variant="outline" className="text-xs">
+                        {skill}
+                      </Badge>
+                    ))}
+                    {agent.skills.length > 5 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{agent.skills.length - 5}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+
+                {/* マッチ理由表示 */}
+                {agent.matchReasons && agent.matchReasons.length > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-md p-2">
+                    <p className="text-xs font-medium text-green-800 mb-1">
+                      推薦理由
+                    </p>
+                    <ul className="text-xs text-green-700 space-y-0.5">
+                      {agent.matchReasons.map((reason) => (
+                        <li key={reason}>{reason}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <Badge variant="secondary">公開中</Badge>
                   <div className="flex gap-2">
