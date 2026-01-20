@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -85,9 +85,7 @@ export default function RecruiterDashboard() {
               </svg>
               公開エージェント
             </CardTitle>
-            <CardDescription>
-              面接可能なエージェントの数
-            </CardDescription>
+            <CardDescription>面接可能なエージェントの数</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-4xl font-bold text-primary">
@@ -119,9 +117,7 @@ export default function RecruiterDashboard() {
               </svg>
               面接セッション
             </CardTitle>
-            <CardDescription>
-              実施した面接の数
-            </CardDescription>
+            <CardDescription>実施した面接の数</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-4xl font-bold text-primary">
@@ -134,9 +130,7 @@ export default function RecruiterDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>最近の面接</CardTitle>
-          <CardDescription>
-            最近実施した面接セッション
-          </CardDescription>
+          <CardDescription>最近実施した面接セッション</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (

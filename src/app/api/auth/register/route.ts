@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { AccountType } from "@prisma/client";
 import { hash } from "bcryptjs";
+import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { AccountType } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,22 +11,19 @@ export async function POST(req: NextRequest) {
     if (!email || !password || !name || !accountType) {
       return NextResponse.json(
         { error: "必須項目が不足しています" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (password.length < 6) {
       return NextResponse.json(
         { error: "パスワードは6文字以上で入力してください" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (accountType === "RECRUITER" && !companyName) {
-      return NextResponse.json(
-        { error: "会社名は必須です" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "会社名は必須です" }, { status: 400 });
     }
 
     const existingAccount = await prisma.account.findUnique({
@@ -36,7 +33,7 @@ export async function POST(req: NextRequest) {
     if (existingAccount) {
       return NextResponse.json(
         { error: "このメールアドレスは既に登録されています" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -70,9 +67,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ account });
   } catch (error) {
     console.error("Registration error:", error);
-    return NextResponse.json(
-      { error: "登録に失敗しました" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "登録に失敗しました" }, { status: 500 });
   }
 }

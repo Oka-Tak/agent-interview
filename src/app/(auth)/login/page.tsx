@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { signIn, getSession } from "next-auth/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { getSession, signIn } from "next-auth/react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,7 +13,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -85,7 +85,10 @@ export default function LoginPage() {
           </form>
           <div className="mt-4 text-center text-sm text-muted-foreground">
             アカウントをお持ちでない場合は
-            <Link href="/register" className="text-primary hover:underline ml-1">
+            <Link
+              href="/register"
+              className="text-primary hover:underline ml-1"
+            >
               新規登録
             </Link>
           </div>

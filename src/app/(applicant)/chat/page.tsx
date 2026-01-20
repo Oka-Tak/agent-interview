@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { ChatWindow } from "@/components/chat/ChatWindow";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -10,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 interface Message {
   id: string;
@@ -123,16 +123,12 @@ export default function ChatPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">抽出された情報</CardTitle>
-            <CardDescription>
-              会話から抽出されたあなたの情報
-            </CardDescription>
+            <CardDescription>会話から抽出されたあなたの情報</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-center py-4">
               <p className="text-4xl font-bold text-primary">{fragmentCount}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                記憶のかけら
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">記憶のかけら</p>
             </div>
           </CardContent>
         </Card>

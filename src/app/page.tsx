@@ -115,9 +115,7 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h4 className="text-lg font-semibold mb-2">
-                  非同期面接
-                </h4>
+                <h4 className="text-lg font-semibold mb-2">非同期面接</h4>
                 <p className="text-muted-foreground">
                   採用担当者はいつでもあなたのエージェントと
                   対話でき、時間や場所の制約を解消します。
@@ -129,9 +127,7 @@ export default function Home() {
 
         <section className="py-16">
           <div className="container mx-auto px-4">
-            <h3 className="text-2xl font-bold text-center mb-12">
-              利用の流れ
-            </h3>
+            <h3 className="text-2xl font-bold text-center mb-12">利用の流れ</h3>
             <div className="grid md:grid-cols-2 gap-12 max-w-4xl mx-auto">
               <div>
                 <h4 className="text-lg font-semibold mb-4 text-primary">

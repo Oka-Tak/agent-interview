@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { AgentPreviewDialog, FragmentList } from "@/components/agent";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,23 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { ChatWindow } from "@/components/chat/ChatWindow";
-
-interface PreviewMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
+import { Textarea } from "@/components/ui/textarea";
 
 interface AgentProfile {
   id: string;
@@ -50,8 +37,6 @@ export default function AgentPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewMessages, setPreviewMessages] = useState<PreviewMessage[]>([]);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   const fetchAgent = useCallback(async () => {
     try {
@@ -132,66 +117,6 @@ export default function AgentPage() {
     }
   };
 
-  const handleOpenPreview = () => {
-    setPreviewMessages([
-      {
-        id: "initial",
-        role: "assistant",
-        content: "こんにちは！私はあなたのAIエージェントです。採用担当者からの質問を想定して、何でも聞いてみてください。",
-      },
-    ]);
-    setIsPreviewOpen(true);
-  };
-
-  const handlePreviewMessage = async (content: string) => {
-    const userMessage: PreviewMessage = {
-      id: Date.now().toString(),
-      role: "user",
-      content,
-    };
-
-    setPreviewMessages((prev) => [...prev, userMessage]);
-    setIsPreviewLoading(true);
-
-    try {
-      const response = await fetch("/api/agents/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [...previewMessages, userMessage]
-            .filter((m) => m.id !== "initial")
-            .map((m) => ({
-              role: m.role,
-              content: m.content,
-            })),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to get response");
-      }
-
-      const data = await response.json();
-      const assistantMessage: PreviewMessage = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: data.message,
-      };
-
-      setPreviewMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error("Preview error:", error);
-      const errorMessage: PreviewMessage = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "エラーが発生しました。もう一度お試しください。",
-      };
-      setPreviewMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsPreviewLoading(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="text-center py-12">
@@ -260,7 +185,10 @@ export default function AgentPage() {
                   <p className="text-muted-foreground mb-4">
                     エージェントがまだ作成されていません
                   </p>
-                  <Button onClick={handleGeneratePrompt} disabled={isGenerating}>
+                  <Button
+                    onClick={handleGeneratePrompt}
+                    disabled={isGenerating}
+                  >
                     {isGenerating ? "生成中..." : "エージェントを生成"}
                   </Button>
                   <p className="text-sm text-muted-foreground mt-2">
@@ -281,7 +209,10 @@ export default function AgentPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button onClick={handleOpenPreview} variant="outline">
+                  <Button
+                    onClick={() => setIsPreviewOpen(true)}
+                    variant="outline"
+                  >
                     エージェントをテスト
                   </Button>
                 </CardContent>
@@ -298,13 +229,15 @@ export default function AgentPage() {
                   <Button
                     onClick={handleToggleStatus}
                     disabled={isUpdating}
-                    variant={agent.status === "PUBLIC" ? "destructive" : "default"}
+                    variant={
+                      agent.status === "PUBLIC" ? "destructive" : "default"
+                    }
                   >
                     {isUpdating
                       ? "更新中..."
                       : agent.status === "PUBLIC"
-                      ? "非公開にする"
-                      : "公開する"}
+                        ? "非公開にする"
+                        : "公開する"}
                   </Button>
                 </CardContent>
               </Card>
@@ -316,40 +249,10 @@ export default function AgentPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">収集された記憶のかけら</CardTitle>
-              <CardDescription>
-                AIチャットから抽出された情報
-              </CardDescription>
+              <CardDescription>AIチャットから抽出された情報</CardDescription>
             </CardHeader>
             <CardContent>
-              {fragments.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  記憶のかけらがありません。
-                  <br />
-                  AIとチャットして情報を追加してください。
-                </p>
-              ) : (
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {fragments.map((fragment) => (
-                    <div key={fragment.id} className="p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge variant="outline" className="text-xs">
-                          {fragment.type}
-                        </Badge>
-                      </div>
-                      <p className="text-sm">{fragment.content}</p>
-                      {fragment.skills.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {fragment.skills.map((skill) => (
-                            <Badge key={skill} variant="secondary" className="text-xs">
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <FragmentList fragments={fragments} />
             </CardContent>
           </Card>
 
@@ -376,24 +279,10 @@ export default function AgentPage() {
         </div>
       </div>
 
-      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-2xl h-[600px] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>エージェントプレビュー</DialogTitle>
-            <DialogDescription>
-              採用担当者の視点でエージェントをテストできます
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden">
-            <ChatWindow
-              messages={previewMessages}
-              onSendMessage={handlePreviewMessage}
-              isLoading={isPreviewLoading}
-              placeholder="採用担当者として質問してみてください..."
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AgentPreviewDialog
+        open={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+      />
     </div>
   );
 }

@@ -6,7 +6,7 @@ export const openai = new OpenAI({
 
 export async function generateChatResponse(
   systemPrompt: string,
-  messages: { role: "user" | "assistant"; content: string }[]
+  messages: { role: "user" | "assistant"; content: string }[],
 ): Promise<string> {
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -18,9 +18,7 @@ export async function generateChatResponse(
   return response.choices[0]?.message?.content || "";
 }
 
-export async function extractFragments(
-  conversationHistory: string
-): Promise<{
+export async function extractFragments(conversationHistory: string): Promise<{
   fragments: {
     type: string;
     content: string;
@@ -59,7 +57,7 @@ JSON形式で返してください。`;
 
 export async function generateAgentSystemPrompt(
   fragments: { type: string; content: string }[],
-  userName: string
+  userName: string,
 ): Promise<string> {
   const fragmentsSummary = fragments
     .map((f) => `[${f.type}]: ${f.content}`)

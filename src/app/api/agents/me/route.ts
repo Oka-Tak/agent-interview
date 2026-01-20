@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { AgentStatus } from "@prisma/client";
+import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { AgentStatus } from "@prisma/client";
 
 export async function GET() {
   try {
@@ -26,7 +26,7 @@ export async function GET() {
     console.error("Get agent error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -62,7 +62,7 @@ export async function PATCH(req: NextRequest) {
     console.error("Update agent error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

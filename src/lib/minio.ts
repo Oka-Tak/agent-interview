@@ -8,7 +8,8 @@ const minioClient = new Minio.Client({
   secretKey: process.env.MINIO_SECRET_KEY || "minioadmin",
 });
 
-const BUCKET_NAME = process.env.MINIO_BUCKET_NAME || "agent-interview-documents";
+const BUCKET_NAME =
+  process.env.MINIO_BUCKET_NAME || "agent-interview-documents";
 
 export async function ensureBucket() {
   const exists = await minioClient.bucketExists(BUCKET_NAME);
@@ -20,7 +21,7 @@ export async function ensureBucket() {
 export async function uploadFile(
   fileName: string,
   buffer: Buffer,
-  contentType: string
+  contentType: string,
 ): Promise<string> {
   await ensureBucket();
   const objectName = `${Date.now()}-${fileName}`;

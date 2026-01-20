@@ -1,20 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
-import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { use, useCallback, useEffect, useState } from "react";
 import { ChatWindow } from "@/components/chat/ChatWindow";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { EvaluationForm, InterviewNotes } from "@/components/interview";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Message {
@@ -65,9 +59,6 @@ export default function InterviewPage({
   const [isFetching, setIsFetching] = useState(true);
 
   const [notes, setNotes] = useState<Note[]>([]);
-  const [newNote, setNewNote] = useState("");
-  const [isAddingNote, setIsAddingNote] = useState(false);
-
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [evalForm, setEvalForm] = useState({
     overallRating: 3,
@@ -76,7 +67,6 @@ export default function InterviewPage({
     cultureRating: 3,
     comment: "",
   });
-  const [isSavingEval, setIsSavingEval] = useState(false);
 
   const fetchAgentInfo = useCallback(async () => {
     try {
@@ -93,16 +83,18 @@ export default function InterviewPage({
   const fetchMessages = useCallback(async () => {
     try {
       const response = await fetch(
-        `/api/interview/${resolvedParams.id}/messages`
+        `/api/interview/${resolvedParams.id}/messages`,
       );
       if (response.ok) {
         const data = await response.json();
         setMessages(
-          data.messages.map((m: { id: string; senderType: string; content: string }) => ({
-            id: m.id,
-            role: m.senderType === "RECRUITER" ? "user" : "assistant",
-            content: m.content,
-          }))
+          data.messages.map(
+            (m: { id: string; senderType: string; content: string }) => ({
+              id: m.id,
+              role: m.senderType === "RECRUITER" ? "user" : "assistant",
+              content: m.content,
+            }),
+          ),
         );
       }
     } catch (error) {
@@ -126,7 +118,9 @@ export default function InterviewPage({
 
   const fetchEvaluation = useCallback(async () => {
     try {
-      const response = await fetch(`/api/interview/${resolvedParams.id}/evaluation`);
+      const response = await fetch(
+        `/api/interview/${resolvedParams.id}/evaluation`,
+      );
       if (response.ok) {
         const data = await response.json();
         if (data.evaluation) {
@@ -196,76 +190,31 @@ export default function InterviewPage({
     }
   };
 
-  const handleAddNote = async () => {
-    if (!newNote.trim()) return;
-    setIsAddingNote(true);
-    try {
-      const response = await fetch(`/api/interview/${resolvedParams.id}/notes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newNote }),
-      });
-      if (response.ok) {
-        setNewNote("");
-        fetchNotes();
-      }
-    } catch (error) {
-      console.error("Failed to add note:", error);
-    } finally {
-      setIsAddingNote(false);
+  const handleAddNote = async (content: string) => {
+    const response = await fetch(`/api/interview/${resolvedParams.id}/notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+    if (response.ok) {
+      fetchNotes();
     }
   };
 
-  const handleSaveEvaluation = async () => {
-    setIsSavingEval(true);
-    try {
-      const response = await fetch(`/api/interview/${resolvedParams.id}/evaluation`, {
+  const handleSaveEvaluation = async (formData: typeof evalForm) => {
+    const response = await fetch(
+      `/api/interview/${resolvedParams.id}/evaluation`,
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(evalForm),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setEvaluation(data.evaluation);
-        alert("評価を保存しました");
-      }
-    } catch (error) {
-      console.error("Failed to save evaluation:", error);
-    } finally {
-      setIsSavingEval(false);
+        body: JSON.stringify(formData),
+      },
+    );
+    if (response.ok) {
+      const data = await response.json();
+      setEvaluation(data.evaluation);
     }
   };
-
-  const RatingInput = ({
-    label,
-    value,
-    onChange,
-  }: {
-    label: string;
-    value: number;
-    onChange: (v: number) => void;
-  }) => (
-    <div className="space-y-1">
-      <div className="flex justify-between">
-        <span className="text-sm">{label}</span>
-        <span className="text-sm font-medium">{value}/5</span>
-      </div>
-      <div className="flex gap-1">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => onChange(n)}
-            className={`w-8 h-8 rounded ${
-              n <= value ? "bg-primary text-white" : "bg-gray-200"
-            }`}
-          >
-            {n}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
 
   if (isFetching) {
     return (
@@ -288,9 +237,7 @@ export default function InterviewPage({
     );
   }
 
-  const allSkills = new Set(
-    agentInfo.fragments.flatMap((f) => f.skills)
-  );
+  const allSkills = new Set(agentInfo.fragments.flatMap((f) => f.skills));
 
   return (
     <div className="space-y-6">
@@ -321,7 +268,9 @@ export default function InterviewPage({
           </Avatar>
           <div>
             <h1 className="text-xl font-bold">{agentInfo.user.name}</h1>
-            <p className="text-sm text-muted-foreground">AIエージェントとの面接</p>
+            <p className="text-sm text-muted-foreground">
+              AIエージェントとの面接
+            </p>
           </div>
         </div>
       </div>
@@ -351,7 +300,11 @@ export default function InterviewPage({
                 <div className="flex flex-wrap gap-1">
                   {allSkills.size > 0 ? (
                     Array.from(allSkills).map((skill) => (
-                      <Badge key={skill} variant="secondary" className="text-xs">
+                      <Badge
+                        key={skill}
+                        variant="secondary"
+                        className="text-xs"
+                      >
                         {skill}
                       </Badge>
                     ))
@@ -373,80 +326,15 @@ export default function InterviewPage({
                   <TabsTrigger value="notes">メモ</TabsTrigger>
                   <TabsTrigger value="evaluation">評価</TabsTrigger>
                 </TabsList>
-                <TabsContent value="notes" className="space-y-3 mt-3">
-                  <div className="space-y-2">
-                    <Textarea
-                      value={newNote}
-                      onChange={(e) => setNewNote(e.target.value)}
-                      placeholder="メモを入力..."
-                      className="min-h-[80px]"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={handleAddNote}
-                      disabled={!newNote.trim() || isAddingNote}
-                    >
-                      {isAddingNote ? "追加中..." : "メモを追加"}
-                    </Button>
-                  </div>
-                  {notes.length > 0 && (
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                      {notes.map((note) => (
-                        <div key={note.id} className="p-2 bg-gray-50 rounded text-sm">
-                          <p>{note.content}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(note.createdAt).toLocaleString("ja-JP")}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <TabsContent value="notes" className="mt-3">
+                  <InterviewNotes notes={notes} onAddNote={handleAddNote} />
                 </TabsContent>
-                <TabsContent value="evaluation" className="space-y-4 mt-3">
-                  <RatingInput
-                    label="総合評価"
-                    value={evalForm.overallRating}
-                    onChange={(v) => setEvalForm({ ...evalForm, overallRating: v })}
+                <TabsContent value="evaluation" className="mt-3">
+                  <EvaluationForm
+                    initialData={evalForm}
+                    matchScore={evaluation?.matchScore}
+                    onSave={handleSaveEvaluation}
                   />
-                  <RatingInput
-                    label="技術力"
-                    value={evalForm.technicalRating}
-                    onChange={(v) => setEvalForm({ ...evalForm, technicalRating: v })}
-                  />
-                  <RatingInput
-                    label="コミュニケーション"
-                    value={evalForm.communicationRating}
-                    onChange={(v) => setEvalForm({ ...evalForm, communicationRating: v })}
-                  />
-                  <RatingInput
-                    label="カルチャーフィット"
-                    value={evalForm.cultureRating}
-                    onChange={(v) => setEvalForm({ ...evalForm, cultureRating: v })}
-                  />
-                  <div className="space-y-1">
-                    <span className="text-sm">コメント</span>
-                    <Textarea
-                      value={evalForm.comment}
-                      onChange={(e) => setEvalForm({ ...evalForm, comment: e.target.value })}
-                      placeholder="評価コメント..."
-                      className="min-h-[60px]"
-                    />
-                  </div>
-                  <Button
-                    onClick={handleSaveEvaluation}
-                    disabled={isSavingEval}
-                    className="w-full"
-                  >
-                    {isSavingEval ? "保存中..." : "評価を保存"}
-                  </Button>
-                  {evaluation?.matchScore && (
-                    <div className="p-3 bg-primary/10 rounded-lg">
-                      <p className="text-sm font-medium">AIマッチ度スコア</p>
-                      <p className="text-2xl font-bold text-primary">
-                        {evaluation.matchScore}%
-                      </p>
-                    </div>
-                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>

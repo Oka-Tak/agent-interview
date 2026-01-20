@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { openai } from "@/lib/openai";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -26,14 +26,14 @@ export async function GET(
     console.error("Get evaluation error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -44,12 +44,23 @@ export async function POST(
 
     const { id } = await params;
     const body = await req.json();
-    const { overallRating, technicalRating, communicationRating, cultureRating, comment } = body;
+    const {
+      overallRating,
+      technicalRating,
+      communicationRating,
+      cultureRating,
+      comment,
+    } = body;
 
-    if (!overallRating || !technicalRating || !communicationRating || !cultureRating) {
+    if (
+      !overallRating ||
+      !technicalRating ||
+      !communicationRating ||
+      !cultureRating
+    ) {
       return NextResponse.json(
         { error: "すべての評価項目を入力してください" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -106,7 +117,9 @@ JSONで{"score": 数値, "reason": "理由"}の形式で回答してください
           temperature: 0.3,
         });
 
-        const result = JSON.parse(response.choices[0]?.message?.content || "{}");
+        const result = JSON.parse(
+          response.choices[0]?.message?.content || "{}",
+        );
         matchScore = result.score || null;
       } catch (e) {
         console.error("Match score calculation error:", e);
@@ -140,7 +153,7 @@ JSONで{"score": 数値, "reason": "理由"}の形式で回答してください
     console.error("Create evaluation error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

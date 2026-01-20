@@ -1,11 +1,11 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,7 +52,10 @@ export default function ApplicantLayout({
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-8">
-              <Link href="/dashboard" className="text-xl font-bold text-primary">
+              <Link
+                href="/dashboard"
+                className="text-xl font-bold text-primary"
+              >
                 Agent Interview
               </Link>
               <nav className="hidden md:flex items-center gap-6">
@@ -69,7 +72,10 @@ export default function ApplicantLayout({
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Button
+                  variant="ghost"
+                  className="relative h-8 w-8 rounded-full"
+                >
                   <Avatar className="h-8 w-8">
                     <AvatarFallback>
                       {session.user?.name?.[0] || "U"}

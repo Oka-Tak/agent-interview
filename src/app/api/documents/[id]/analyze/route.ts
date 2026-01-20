@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { FragmentType, SourceType } from "@prisma/client";
+import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { getFileBuffer } from "@/lib/minio";
 import { extractFragments } from "@/lib/openai";
-import { FragmentType, SourceType } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -27,14 +27,18 @@ export async function POST(
     });
 
     if (!document) {
-      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 },
+      );
     }
 
     const fileBuffer = await getFileBuffer(document.filePath);
     let textContent = "";
 
     if (document.fileName.toLowerCase().endsWith(".pdf")) {
-      const pdfParse = (await import("pdf-parse")).default;
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfParse = require("pdf-parse");
       const pdfData = await pdfParse(fileBuffer);
       textContent = pdfData.text;
     } else if (
@@ -49,7 +53,7 @@ export async function POST(
     if (!textContent.trim()) {
       return NextResponse.json(
         { error: "ドキュメントからテキストを抽出できませんでした" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -61,7 +65,9 @@ export async function POST(
     const createdFragments = [];
 
     for (const fragment of result.fragments || []) {
-      const fragmentType = validFragmentTypes.includes(fragment.type as FragmentType)
+      const fragmentType = validFragmentTypes.includes(
+        fragment.type as FragmentType,
+      )
         ? (fragment.type as FragmentType)
         : FragmentType.FACT;
 
@@ -98,7 +104,7 @@ export async function POST(
     console.error("Document analysis error:", error);
     return NextResponse.json(
       { error: "ドキュメントの解析に失敗しました" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

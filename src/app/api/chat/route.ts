@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type FragmentType, SourceType } from "@prisma/client";
+import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { extractFragments, generateChatResponse } from "@/lib/openai";
 import { prisma } from "@/lib/prisma";
-import { generateChatResponse, extractFragments } from "@/lib/openai";
-import { FragmentType, SourceType } from "@prisma/client";
 
 const SYSTEM_PROMPT = `あなたは求職者からキャリア情報を収集するインタビュアーAIです。
 友好的で専門的な態度で、以下の情報を自然な会話を通じて収集してください：
@@ -31,24 +31,33 @@ export async function POST(req: NextRequest) {
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
         { error: "Messages are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const chatMessages = messages.map((m: { role: string; content: string }) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
+    const chatMessages = messages.map(
+      (m: { role: string; content: string }) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }),
+    );
 
-    const responseMessage = await generateChatResponse(SYSTEM_PROMPT, chatMessages);
+    const responseMessage = await generateChatResponse(
+      SYSTEM_PROMPT,
+      chatMessages,
+    );
 
     let fragmentsExtracted = 0;
 
-    const userMessages = messages.filter((m: { role: string }) => m.role === "user");
+    const userMessages = messages.filter(
+      (m: { role: string }) => m.role === "user",
+    );
     if (userMessages.length > 0 && userMessages.length % 3 === 0) {
       try {
         const conversationText = messages
-          .map((m: { role: string; content: string }) => `${m.role}: ${m.content}`)
+          .map(
+            (m: { role: string; content: string }) => `${m.role}: ${m.content}`,
+          )
           .join("\n");
 
         const extractedData = await extractFragments(conversationText);
@@ -82,7 +91,7 @@ export async function POST(req: NextRequest) {
     console.error("Chat API error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

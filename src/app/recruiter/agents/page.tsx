@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,8 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 
 interface Agent {
@@ -48,7 +48,7 @@ export default function AgentsListPage() {
   }, [fetchAgents]);
 
   const filteredAgents = agents.filter((agent) =>
-    agent.user.name.toLowerCase().includes(searchQuery.toLowerCase())
+    agent.user.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (

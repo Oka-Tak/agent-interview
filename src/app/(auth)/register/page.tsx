@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,7 +14,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Link from "next/link";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -81,7 +81,12 @@ export default function RegisterPage() {
   };
 
   const handleRecruiterRegister = async () => {
-    if (!email.trim() || !password.trim() || !name.trim() || !companyName.trim()) {
+    if (
+      !email.trim() ||
+      !password.trim() ||
+      !name.trim() ||
+      !companyName.trim()
+    ) {
       setError("すべての項目を入力してください");
       return;
     }
@@ -140,12 +145,8 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">
-            アカウント登録
-          </CardTitle>
-          <CardDescription>
-            アカウントタイプを選択してください
-          </CardDescription>
+          <CardTitle className="text-2xl font-bold">アカウント登録</CardTitle>
+          <CardDescription>アカウントタイプを選択してください</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="user" className="w-full">
@@ -189,9 +190,7 @@ export default function RegisterPage() {
                   placeholder="山田 太郎"
                 />
               </div>
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
+              {error && <p className="text-sm text-destructive">{error}</p>}
               <Button
                 onClick={handleUserRegister}
                 className="w-full"
@@ -248,9 +247,7 @@ export default function RegisterPage() {
                   placeholder="株式会社サンプル"
                 />
               </div>
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
+              {error && <p className="text-sm text-destructive">{error}</p>}
               <Button
                 onClick={handleRecruiterRegister}
                 className="w-full"

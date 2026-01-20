@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { generateChatResponse } from "@/lib/openai";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     if (!agent) {
       return NextResponse.json(
         { error: "エージェントがまだ作成されていません" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -46,14 +46,16 @@ ${fragmentsContext || "（詳細な情報はまだ収集されていません）
 採用担当者からの質問を想定して、${agent.user.name}さんの代理として丁寧かつ専門的に回答してください。
 わからないことは正直に「その点についてはまだ情報を持っていません」と答えてください。`;
 
-    const formattedMessages = messages.map((m: { role: string; content: string }) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
+    const formattedMessages = messages.map(
+      (m: { role: string; content: string }) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }),
+    );
 
     const responseMessage = await generateChatResponse(
       previewSystemPrompt,
-      formattedMessages
+      formattedMessages,
     );
 
     return NextResponse.json({ message: responseMessage });
@@ -61,7 +63,7 @@ ${fragmentsContext || "（詳細な情報はまだ収集されていません）
     console.error("Agent preview error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

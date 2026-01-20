@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { generateAgentSystemPrompt } from "@/lib/openai";
+import { prisma } from "@/lib/prisma";
 
 export async function POST() {
   try {
@@ -34,7 +34,7 @@ export async function POST() {
     } else {
       systemPrompt = await generateAgentSystemPrompt(
         fragments.map((f) => ({ type: f.type, content: f.content })),
-        user.name
+        user.name,
       );
     }
 
@@ -63,7 +63,7 @@ export async function POST() {
     console.error("Generate agent error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

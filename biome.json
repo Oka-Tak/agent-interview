@@ -1,17 +1,27 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "organizeImports": {
-    "enabled": true
-  },
+  "$schema": "https://biomejs.dev/schemas/2.3.11/schema.json",
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": {
     "enabled": true,
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noExplicitAny": "warn"
+        "noExplicitAny": "warn",
+        "noImplicitAnyLet": "off"
       },
       "style": {
         "noNonNullAssertion": "warn"
+      },
+      "correctness": {
+        "noUnusedFunctionParameters": "off",
+        "useExhaustiveDependencies": "warn"
+      },
+      "a11y": {
+        "noLabelWithoutControl": "off",
+        "noSvgWithoutTitle": "off"
+      },
+      "complexity": {
+        "useOptionalChain": "off"
       }
     }
   },
@@ -26,13 +36,23 @@
       "semicolons": "always"
     }
   },
+  "css": {
+    "parser": {
+      "cssModules": true
+    },
+    "linter": {
+      "enabled": false
+    }
+  },
   "files": {
-    "ignore": [
-      "node_modules",
-      ".next",
-      "dist",
-      "build",
-      "*.min.js"
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/dist",
+      "!**/build",
+      "!**/*.min.js",
+      "!**/*.css"
     ]
   }
 }
