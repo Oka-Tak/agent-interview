@@ -15,7 +15,10 @@ import {
 
 const navigation = [
   { name: "ダッシュボード", href: "/recruiter/dashboard" },
+  { name: "求人管理", href: "/recruiter/jobs" },
+  { name: "パイプライン", href: "/recruiter/pipeline" },
   { name: "エージェント一覧", href: "/recruiter/agents" },
+  { name: "ウォッチリスト", href: "/recruiter/watches" },
 ];
 
 export default function RecruiterLayout({
