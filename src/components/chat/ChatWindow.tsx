@@ -6,10 +6,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { MessageBubble } from "./MessageBubble";
 
+interface FragmentReference {
+  id: string;
+  type: string;
+  content: string;
+  skills: string[];
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  references?: FragmentReference[];
 }
 
 interface ChatWindowProps {
@@ -28,13 +36,11 @@ export function ChatWindow({
   placeholder = "メッセージを入力...",
 }: ChatWindowProps) {
   const [input, setInput] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages.length]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length, isLoading]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +58,7 @@ export function ChatWindow({
 
   return (
     <div className="flex flex-col h-full">
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
           {messages.length === 0 && (
             <div className="text-center text-muted-foreground py-8">
@@ -66,6 +72,7 @@ export function ChatWindow({
               content={message.content}
               role={message.role}
               senderName={userName}
+              references={message.references}
             />
           ))}
           {isLoading && (
@@ -82,6 +89,7 @@ export function ChatWindow({
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
       <form onSubmit={handleSubmit} className="border-t p-4">

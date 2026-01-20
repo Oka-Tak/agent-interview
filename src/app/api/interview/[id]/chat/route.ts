@@ -119,8 +119,44 @@ export async function POST(
       where: { userId: agent.userId },
     });
 
+    // 質問に関連するフラグメントをスコアリング
+    const messageLower = message.toLowerCase();
+    const scoredFragments = fragments.map((f) => {
+      let score = 0;
+      const contentLower = f.content.toLowerCase();
+
+      // キーワードマッチング
+      for (const skill of f.skills) {
+        if (messageLower.includes(skill.toLowerCase())) {
+          score += 3;
+        }
+      }
+      for (const keyword of f.keywords) {
+        if (messageLower.includes(keyword.toLowerCase())) {
+          score += 2;
+        }
+      }
+
+      // 内容に含まれる一般的なキーワード
+      const messageWords = messageLower.split(/\s+/);
+      for (const word of messageWords) {
+        if (word.length > 2 && contentLower.includes(word)) {
+          score += 1;
+        }
+      }
+
+      return { fragment: f, score };
+    });
+
+    // スコアが高い順にソートし、上位のフラグメントを選択
+    const relevantFragments = scoredFragments
+      .filter((sf) => sf.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map((sf) => sf.fragment);
+
     const fragmentsContext = fragments
-      .map((f) => `[${f.type}]: ${f.content}`)
+      .map((f, i) => `[REF${i + 1}] [${f.type}]: ${f.content}`)
       .join("\n");
 
     const enhancedSystemPrompt = `${agent.systemPrompt}
@@ -137,7 +173,7 @@ ${fragmentsContext || "（詳細な情報はまだ収集されていません）
       { role: "user", content: message },
     ]);
 
-    await prisma.message.create({
+    const aiMessage = await prisma.message.create({
       data: {
         sessionId: chatSession.id,
         senderType: "AI",
@@ -145,7 +181,32 @@ ${fragmentsContext || "（詳細な情報はまだ収集されていません）
       },
     });
 
-    return NextResponse.json({ message: responseMessage });
+    // 関連するフラグメントへの参照を保存
+    if (relevantFragments.length > 0) {
+      await prisma.messageReference.createMany({
+        data: relevantFragments.map((f) => ({
+          messageId: aiMessage.id,
+          refType: "FRAGMENT" as const,
+          refId: f.id,
+        })),
+      });
+    }
+
+    // 参照情報を返す
+    const references = relevantFragments.map((f) => ({
+      id: f.id,
+      type: f.type,
+      content:
+        f.content.length > 100
+          ? f.content.substring(0, 100) + "..."
+          : f.content,
+      skills: f.skills,
+    }));
+
+    return NextResponse.json({
+      message: responseMessage,
+      references,
+    });
   } catch (error) {
     console.error("Interview chat error:", error);
 
