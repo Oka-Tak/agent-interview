@@ -1,0 +1,105 @@
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { openai } from "@/lib/openai";
+import { prisma } from "@/lib/prisma";
+
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
+
+// 会話の要約を生成
+export async function GET(request: Request, context: RouteContext) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.recruiterId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await context.params;
+
+    // エージェントの存在確認
+    const agent = await prisma.agentProfile.findUnique({
+      where: { id: id },
+      include: {
+        user: { select: { name: true } },
+      },
+    });
+
+    if (!agent) {
+      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    }
+
+    // このリクルーターとエージェントのセッションを取得
+    const existingSession = await prisma.session.findFirst({
+      where: {
+        sessionType: "RECRUITER_AGENT_CHAT",
+        recruiterId: session.user.recruiterId,
+        id,
+      },
+      include: {
+        messages: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+
+    if (!existingSession || existingSession.messages.length === 0) {
+      return NextResponse.json({
+        summary: null,
+        messageCount: 0,
+      });
+    }
+
+    // 会話を要約するためにOpenAIを使用
+    const conversationText = existingSession.messages
+      .map((m) => {
+        const sender =
+          m.senderType === "RECRUITER" ? "採用担当者" : "エージェント";
+        return `${sender}: ${m.content}`;
+      })
+      .join("\n\n");
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      max_tokens: 1000,
+      messages: [
+        {
+          role: "system",
+          content:
+            "あなたは採用面接の会話を要約するアシスタントです。日本語で簡潔にまとめてください。",
+        },
+        {
+          role: "user",
+          content: `以下は採用担当者と候補者（${agent.user.name}）のAIエージェントとの会話です。
+この会話を要約し、以下の観点で整理してください：
+
+1. **会話の概要**: 何について話し合われたか（2-3文）
+2. **候補者の強み**: 会話から見えた強みやスキル
+3. **確認済み事項**: 会話で確認できた重要な情報
+4. **未確認事項**: まだ確認が必要そうな事項（あれば）
+5. **全体的な印象**: 候補者の印象（1-2文）
+
+会話内容:
+${conversationText}`,
+        },
+      ],
+    });
+
+    const summary = response.choices[0]?.message?.content || "";
+
+    return NextResponse.json({
+      summary,
+      messageCount: existingSession.messages.length,
+      lastMessageAt:
+        existingSession.messages[existingSession.messages.length - 1].createdAt,
+    });
+  } catch (error) {
+    console.error("Generate summary error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}

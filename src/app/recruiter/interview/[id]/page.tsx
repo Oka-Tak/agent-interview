@@ -11,10 +11,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+interface FragmentReference {
+  id: string;
+  type: string;
+  content: string;
+  skills: string[];
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  references?: FragmentReference[];
 }
 
 interface AgentInfo {
@@ -51,6 +59,12 @@ interface Interest {
   status: string;
 }
 
+interface Summary {
+  summary: string | null;
+  messageCount: number;
+  lastMessageAt: string | null;
+}
+
 export default function InterviewPage({
   params,
 }: {
@@ -66,6 +80,8 @@ export default function InterviewPage({
   const [notes, setNotes] = useState<Note[]>([]);
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [interest, setInterest] = useState<Interest | null>(null);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [isExpressingInterest, setIsExpressingInterest] = useState(false);
   const [evalForm, setEvalForm] = useState({
     overallRating: 3,
@@ -163,6 +179,23 @@ export default function InterviewPage({
     }
   }, [resolvedParams.id]);
 
+  const fetchSummary = useCallback(async () => {
+    setIsSummaryLoading(true);
+    try {
+      const response = await fetch(
+        `/api/interview/${resolvedParams.id}/summary`,
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setSummary(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch summary:", error);
+    } finally {
+      setIsSummaryLoading(false);
+    }
+  }, [resolvedParams.id]);
+
   useEffect(() => {
     fetchAgentInfo();
     fetchMessages();
@@ -228,6 +261,7 @@ export default function InterviewPage({
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: data.message,
+        references: data.references || [],
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -412,9 +446,15 @@ export default function InterviewPage({
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="notes">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="notes">メモ</TabsTrigger>
                   <TabsTrigger value="evaluation">評価</TabsTrigger>
+                  <TabsTrigger
+                    value="summary"
+                    onClick={() => !summary && fetchSummary()}
+                  >
+                    要約
+                  </TabsTrigger>
                 </TabsList>
                 <TabsContent value="notes" className="mt-3">
                   <InterviewNotes notes={notes} onAddNote={handleAddNote} />
@@ -425,6 +465,51 @@ export default function InterviewPage({
                     matchScore={evaluation?.matchScore}
                     onSave={handleSaveEvaluation}
                   />
+                </TabsContent>
+                <TabsContent value="summary" className="mt-3">
+                  {isSummaryLoading ? (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-muted-foreground">
+                        要約を生成中...
+                      </p>
+                    </div>
+                  ) : summary?.summary ? (
+                    <div className="space-y-3">
+                      <div className="text-xs text-muted-foreground">
+                        {summary.messageCount}件のメッセージを分析
+                      </div>
+                      <div className="prose prose-sm max-w-none">
+                        <div className="whitespace-pre-wrap text-sm">
+                          {summary.summary}
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={fetchSummary}
+                      >
+                        要約を更新
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        {messages.length === 0
+                          ? "会話を開始すると要約を生成できます"
+                          : "会話の要約を生成します"}
+                      </p>
+                      {messages.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={fetchSummary}
+                        >
+                          要約を生成
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>
