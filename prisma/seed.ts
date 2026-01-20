@@ -1,4 +1,12 @@
-import { PrismaClient, AccountType, FragmentType, SourceType, AgentStatus } from "@prisma/client";
+import {
+  AccountType,
+  AgentStatus,
+  FragmentType,
+  PlanType,
+  PointTransactionType,
+  PrismaClient,
+  SourceType,
+} from "@prisma/client";
 import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -17,6 +25,8 @@ async function main() {
       user: {
         create: {
           name: "山田 太郎",
+          email: "yamada.taro@example.com",
+          phone: "090-1234-5678",
         },
       },
     },
@@ -37,7 +47,39 @@ async function main() {
         },
       },
     },
+    include: { recruiter: true },
   });
+
+  // 採用担当者にサブスクリプション（スタンダードプラン）を付与
+  if (recruiterAccount.recruiter) {
+    const recruiterId = recruiterAccount.recruiter.id;
+
+    await prisma.subscription.upsert({
+      where: { recruiterId },
+      update: {},
+      create: {
+        recruiterId,
+        planType: PlanType.STANDARD,
+        pointBalance: 300,
+        pointsIncluded: 300,
+        status: "ACTIVE",
+      },
+    });
+
+    // 初期ポイント付与の取引履歴
+    await prisma.pointTransaction.upsert({
+      where: { id: `seed-grant-${recruiterId}` },
+      update: {},
+      create: {
+        id: `seed-grant-${recruiterId}`,
+        recruiterId,
+        type: PointTransactionType.GRANT,
+        amount: 300,
+        balance: 300,
+        description: "スタンダードプラン初期ポイント付与",
+      },
+    });
+  }
 
   if (userAccount.user) {
     const userId = userAccount.user.id;
@@ -52,31 +94,36 @@ async function main() {
       },
       {
         type: FragmentType.FACT,
-        content: "株式会社テックコーポレーションでバックエンドエンジニアとして3年間勤務",
+        content:
+          "株式会社テックコーポレーションでバックエンドエンジニアとして3年間勤務",
         skills: ["バックエンド開発"],
         keywords: ["エンジニア", "3年", "正社員"],
       },
       {
         type: FragmentType.SKILL_USAGE,
-        content: "TypeScript、React、Node.jsを使用したWebアプリケーション開発を担当",
+        content:
+          "TypeScript、React、Node.jsを使用したWebアプリケーション開発を担当",
         skills: ["TypeScript", "React", "Node.js", "Web開発"],
         keywords: ["フロントエンド", "バックエンド", "フルスタック"],
       },
       {
         type: FragmentType.ACHIEVEMENT,
-        content: "社内の決済システムのリアーキテクチャを主導し、レスポンス時間を50%改善",
+        content:
+          "社内の決済システムのリアーキテクチャを主導し、レスポンス時間を50%改善",
         skills: ["システム設計", "パフォーマンス最適化"],
         keywords: ["決済システム", "リアーキテクチャ", "改善"],
       },
       {
         type: FragmentType.ACHIEVEMENT,
-        content: "新人研修プログラムを設計・実施し、オンボーディング期間を2週間短縮",
+        content:
+          "新人研修プログラムを設計・実施し、オンボーディング期間を2週間短縮",
         skills: ["メンタリング", "研修設計"],
         keywords: ["新人研修", "オンボーディング", "教育"],
       },
       {
         type: FragmentType.CHALLENGE,
-        content: "レガシーシステムからの移行プロジェクトで、データ整合性を保ちながら段階的な移行を実現",
+        content:
+          "レガシーシステムからの移行プロジェクトで、データ整合性を保ちながら段階的な移行を実現",
         skills: ["プロジェクト管理", "データマイグレーション"],
         keywords: ["レガシー", "移行", "段階的"],
       },
@@ -88,7 +135,8 @@ async function main() {
       },
       {
         type: FragmentType.VALUE,
-        content: "チームでの協働を大切にし、コードレビューを通じた知識共有を積極的に行う",
+        content:
+          "チームでの協働を大切にし、コードレビューを通じた知識共有を積極的に行う",
         skills: ["チームワーク", "コードレビュー"],
         keywords: ["協働", "知識共有", "チーム"],
       },
@@ -155,7 +203,9 @@ async function main() {
     console.log("- User: user@example.com / password123");
     console.log("  - 8 fragments (記憶のかけら)");
     console.log("  - 1 public agent");
+    console.log("  - 連絡先: yamada.taro@example.com / 090-1234-5678");
     console.log("- Recruiter: recruiter@example.com / password123");
+    console.log("  - スタンダードプラン (300pt)");
   }
 }
 
