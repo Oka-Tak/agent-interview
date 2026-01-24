@@ -6,6 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -77,6 +87,9 @@ export default function PipelinePage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [removeTarget, setRemoveTarget] = useState<Pipeline | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const fetchPipeline = useCallback(async () => {
     try {
@@ -133,16 +146,24 @@ export default function PipelinePage() {
   };
 
   const handleRemove = async (pipelineId: string) => {
-    if (!confirm("この候補者をパイプラインから削除しますか？")) return;
+    setIsRemoving(true);
+    setRemoveError(null);
     try {
       const res = await fetch(`/api/recruiter/pipeline/${pipelineId}`, {
         method: "DELETE",
       });
       if (res.ok) {
         fetchPipeline();
+        setRemoveTarget(null);
+      } else {
+        const data = await res.json();
+        setRemoveError(data.error || "削除に失敗しました");
       }
     } catch (error) {
       console.error("Failed to remove from pipeline:", error);
+      setRemoveError("削除に失敗しました");
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -155,8 +176,8 @@ export default function PipelinePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">パイプライン</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-3xl font-bold text-balance">パイプライン</h1>
+          <p className="text-muted-foreground mt-1 text-pretty tabular-nums">
             候補者の選考状況を管理します（アクティブ: {totalActive}名）
           </p>
         </div>
@@ -178,15 +199,15 @@ export default function PipelinePage() {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">読み込み中...</p>
+        <p className="text-muted-foreground text-pretty">読み込み中...</p>
       ) : (
         <div className="grid grid-cols-5 gap-4">
           {activeStages.map((stage) => (
             <div key={stage} className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-sm">
+                <h3 className="font-semibold text-sm text-balance">
                   {stageLabels[stage]}
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="secondary" className="ml-2 tabular-nums">
                     {counts[stage] || 0}
                   </Badge>
                 </h3>
@@ -199,7 +220,7 @@ export default function PipelinePage() {
                         {pipeline.agent.user.name}
                       </CardTitle>
                       {pipeline.job && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground text-pretty">
                           {pipeline.job.title}
                         </p>
                       )}
@@ -262,7 +283,10 @@ export default function PipelinePage() {
                           variant="ghost"
                           size="sm"
                           className="text-xs text-destructive"
-                          onClick={() => handleRemove(pipeline.id)}
+                          onClick={() => {
+                            setRemoveTarget(pipeline);
+                            setRemoveError(null);
+                          }}
                         >
                           削除
                         </Button>
@@ -278,7 +302,7 @@ export default function PipelinePage() {
 
       {/* Archived/Closed stages */}
       <div className="mt-8">
-        <h2 className="text-lg font-semibold mb-4">クローズド</h2>
+        <h2 className="text-lg font-semibold mb-4 text-balance">クローズド</h2>
         <div className="grid grid-cols-3 gap-4">
           {["HIRED", "REJECTED", "WITHDRAWN"].map((stage) => (
             <Card key={stage}>
@@ -287,14 +311,14 @@ export default function PipelinePage() {
                   <Badge className={stageColors[stage]}>
                     {stageLabels[stage]}
                   </Badge>
-                  <span className="text-muted-foreground">
+                  <span className="text-muted-foreground tabular-nums">
                     {counts[stage] || 0}名
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {(grouped[stage] || []).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground text-pretty">
                     候補者がいません
                   </p>
                 ) : (
@@ -306,14 +330,14 @@ export default function PipelinePage() {
                       >
                         <span>{pipeline.agent.user.name}</span>
                         {pipeline.job && (
-                          <span className="text-muted-foreground text-xs">
+                          <span className="text-muted-foreground text-xs text-pretty">
                             {pipeline.job.title}
                           </span>
                         )}
                       </div>
                     ))}
                     {(grouped[stage] || []).length > 3 && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground tabular-nums">
                         他 {(grouped[stage] || []).length - 3}名
                       </p>
                     )}
@@ -324,6 +348,44 @@ export default function PipelinePage() {
           ))}
         </div>
       </div>
+
+      <AlertDialog
+        open={!!removeTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRemoveTarget(null);
+            setRemoveError(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>パイプラインから削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              この候補者をパイプラインから外します。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                if (removeTarget) {
+                  handleRemove(removeTarget.id);
+                }
+              }}
+              disabled={isRemoving}
+            >
+              {isRemoving ? "削除中..." : "削除する"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+          {removeError && (
+            <p className="text-xs text-destructive text-pretty" role="alert">
+              {removeError}
+            </p>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RatingInput } from "./RatingInput";
+import { cn } from "@/lib/utils";
 
 interface EvaluationData {
   overallRating: number;
@@ -26,12 +27,20 @@ export function EvaluationForm({
 }: EvaluationFormProps) {
   const [form, setForm] = useState<EvaluationData>(initialData);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const handleSave = async () => {
     setIsSaving(true);
+    setSaveStatus(null);
     try {
       await onSave(form);
-      alert("評価を保存しました");
+      setSaveStatus({ type: "success", message: "評価を保存しました" });
+    } catch (error) {
+      console.error("Failed to save evaluation:", error);
+      setSaveStatus({ type: "error", message: "保存に失敗しました" });
     } finally {
       setIsSaving(false);
     }
@@ -71,10 +80,25 @@ export function EvaluationForm({
       <Button onClick={handleSave} disabled={isSaving} className="w-full">
         {isSaving ? "保存中..." : "評価を保存"}
       </Button>
+      {saveStatus && (
+        <p
+          className={cn(
+            "text-xs text-pretty",
+            saveStatus.type === "error" ? "text-destructive" : "text-primary",
+          )}
+          role={saveStatus.type === "error" ? "alert" : undefined}
+        >
+          {saveStatus.message}
+        </p>
+      )}
       {typeof matchScore === "number" && (
         <div className="p-3 bg-primary/10 rounded-lg">
-          <p className="text-sm font-medium">AIマッチ度スコア</p>
-          <p className="text-2xl font-bold text-primary">{matchScore}%</p>
+          <p className="text-sm font-medium text-balance">
+            AIマッチ度スコア
+          </p>
+          <p className="text-2xl font-bold text-primary tabular-nums">
+            {matchScore}%
+          </p>
         </div>
       )}
     </div>

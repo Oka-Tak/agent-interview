@@ -49,6 +49,9 @@ export default function AgentsListPage() {
   const [processingAgentId, setProcessingAgentId] = useState<string | null>(
     null,
   );
+  const [interestErrors, setInterestErrors] = useState<Record<string, string>>(
+    {},
+  );
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -104,6 +107,7 @@ export default function AgentsListPage() {
 
   const handleExpressInterest = async (agentId: string) => {
     setProcessingAgentId(agentId);
+    setInterestErrors((prev) => ({ ...prev, [agentId]: "" }));
     try {
       const response = await fetch("/api/interests", {
         method: "POST",
@@ -116,11 +120,17 @@ export default function AgentsListPage() {
         setInterests((prev) => [...prev, data.interest]);
       } else {
         const data = await response.json();
-        alert(data.error || "エラーが発生しました");
+        setInterestErrors((prev) => ({
+          ...prev,
+          [agentId]: data.error || "エラーが発生しました",
+        }));
       }
     } catch (error) {
       console.error("Failed to express interest:", error);
-      alert("エラーが発生しました");
+      setInterestErrors((prev) => ({
+        ...prev,
+        [agentId]: "エラーが発生しました",
+      }));
     } finally {
       setProcessingAgentId(null);
     }
@@ -137,8 +147,8 @@ export default function AgentsListPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">エージェント一覧</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-3xl font-bold text-balance">エージェント一覧</h1>
+        <p className="text-muted-foreground mt-2 text-pretty">
           公開されているエージェントと面接を行えます
         </p>
       </div>
@@ -175,13 +185,13 @@ export default function AgentsListPage() {
 
       {isLoading ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">読み込み中...</p>
+          <p className="text-muted-foreground text-pretty">読み込み中...</p>
         </div>
       ) : filteredAgents.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <svg
-              className="w-12 h-12 mx-auto text-muted-foreground mb-4"
+              className="size-12 mx-auto text-muted-foreground mb-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -193,11 +203,31 @@ export default function AgentsListPage() {
                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
               />
             </svg>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-pretty">
               {searchQuery
                 ? "検索条件に一致するエージェントがありません"
                 : "現在公開されているエージェントはありません"}
             </p>
+            <div className="mt-4">
+              {searchQuery || selectedJobId ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedJobId("");
+                  }}
+                >
+                  検索条件をクリア
+                </Button>
+              ) : (
+                <Link href="/recruiter/watches">
+                  <Button variant="outline" size="sm">
+                    ウォッチを作成
+                  </Button>
+                </Link>
+              )}
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -206,7 +236,7 @@ export default function AgentsListPage() {
             <Card key={agent.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex items-center gap-4">
-                  <Avatar className="h-12 w-12">
+                  <Avatar className="size-12">
                     <AvatarFallback className="bg-primary text-white text-lg">
                       {agent.user.name[0]}
                     </AvatarFallback>
@@ -223,6 +253,7 @@ export default function AgentsListPage() {
                                 ? "secondary"
                                 : "outline"
                           }
+                          className="tabular-nums"
                         >
                           {Math.round(agent.matchScore * 100)}%マッチ
                         </Badge>
@@ -230,7 +261,9 @@ export default function AgentsListPage() {
                     </div>
                     <CardDescription>
                       更新日:{" "}
-                      {new Date(agent.updatedAt).toLocaleDateString("ja-JP")}
+                      <span className="tabular-nums">
+                        {new Date(agent.updatedAt).toLocaleDateString("ja-JP")}
+                      </span>
                     </CardDescription>
                   </div>
                 </div>
@@ -245,7 +278,7 @@ export default function AgentsListPage() {
                       </Badge>
                     ))}
                     {agent.skills.length > 5 && (
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-xs tabular-nums">
                         +{agent.skills.length - 5}
                       </Badge>
                     )}
@@ -255,10 +288,10 @@ export default function AgentsListPage() {
                 {/* マッチ理由表示 */}
                 {agent.matchReasons && agent.matchReasons.length > 0 && (
                   <div className="bg-green-50 border border-green-200 rounded-md p-2">
-                    <p className="text-xs font-medium text-green-800 mb-1">
+                    <p className="text-xs font-medium text-green-800 mb-1 text-balance">
                       推薦理由
                     </p>
-                    <ul className="text-xs text-green-700 space-y-0.5">
+                    <ul className="text-xs text-green-700 space-y-0.5 text-pretty">
                       {agent.matchReasons.map((reason) => (
                         <li key={reason}>{reason}</li>
                       ))}
@@ -266,59 +299,69 @@ export default function AgentsListPage() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary">公開中</Badge>
-                  <div className="flex gap-2">
-                    {(() => {
-                      const interest = getInterestForAgent(agent.id);
-                      if (interest) {
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary">公開中</Badge>
+                    <div className="flex gap-2">
+                      {(() => {
+                        const interest = getInterestForAgent(agent.id);
+                        if (interest) {
+                          return (
+                            <Badge variant="outline" className="py-1.5">
+                              <svg
+                                className="size-4 mr-1 text-red-500"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                              </svg>
+                              興味あり
+                            </Badge>
+                          );
+                        }
                         return (
-                          <Badge variant="outline" className="py-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleExpressInterest(agent.id)}
+                            disabled={processingAgentId === agent.id}
+                          >
                             <svg
-                              className="w-4 h-4 mr-1 text-red-500"
-                              fill="currentColor"
+                              className="size-4 mr-1"
+                              fill="none"
+                              stroke="currentColor"
                               viewBox="0 0 24 24"
                             >
-                              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                              />
                             </svg>
                             興味あり
-                          </Badge>
+                          </Button>
                         );
-                      }
-                      return (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleExpressInterest(agent.id)}
-                          disabled={processingAgentId === agent.id}
-                        >
-                          <svg
-                            className="w-4 h-4 mr-1"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                            />
-                          </svg>
-                          興味あり
-                        </Button>
-                      );
-                    })()}
-                    <Link
-                      href={
-                        selectedJobId
-                          ? `/recruiter/interview/${agent.id}?jobId=${selectedJobId}`
-                          : `/recruiter/interview/${agent.id}`
-                      }
-                    >
-                      <Button>面接を始める</Button>
-                    </Link>
+                      })()}
+                      <Link
+                        href={
+                          selectedJobId
+                            ? `/recruiter/interview/${agent.id}?jobId=${selectedJobId}`
+                            : `/recruiter/interview/${agent.id}`
+                        }
+                      >
+                        <Button>面接を始める</Button>
+                      </Link>
+                    </div>
                   </div>
+                  {interestErrors[agent.id] && (
+                    <p
+                      className="text-xs text-destructive text-pretty"
+                      role="alert"
+                    >
+                      {interestErrors[agent.id]}
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>

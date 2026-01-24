@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 interface RatingInputProps {
   label: string;
   value: number;
@@ -16,8 +18,8 @@ export function RatingInput({
   return (
     <div className="space-y-1">
       <div className="flex justify-between">
-        <span className="text-sm">{label}</span>
-        <span className="text-sm font-medium">
+        <span className="text-sm text-balance">{label}</span>
+        <span className="text-sm font-medium tabular-nums">
           {value}/{max}
         </span>
       </div>
@@ -27,9 +29,10 @@ export function RatingInput({
             key={n}
             type="button"
             onClick={() => onChange(n)}
-            className={`w-8 h-8 rounded ${
-              n <= value ? "bg-primary text-white" : "bg-gray-200"
-            }`}
+            className={cn(
+              "size-8 rounded tabular-nums",
+              n <= value ? "bg-primary text-white" : "bg-gray-200",
+            )}
           >
             {n}
           </button>

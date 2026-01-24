@@ -114,6 +114,7 @@ export default function InterviewPage({
   const [summary, setSummary] = useState<Summary | null>(null);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [isExpressingInterest, setIsExpressingInterest] = useState(false);
+  const [interestError, setInterestError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [selectedJobId, setSelectedJobId] = useState("");
   const [guide, setGuide] = useState<InterviewGuide | null>(null);
@@ -304,6 +305,7 @@ export default function InterviewPage({
 
   const handleExpressInterest = async () => {
     setIsExpressingInterest(true);
+    setInterestError(null);
     try {
       const response = await fetch("/api/interests", {
         method: "POST",
@@ -316,11 +318,11 @@ export default function InterviewPage({
         setInterest(data.interest);
       } else {
         const data = await response.json();
-        alert(data.error || "エラーが発生しました");
+        setInterestError(data.error || "エラーが発生しました");
       }
     } catch (error) {
       console.error("Failed to express interest:", error);
-      alert("エラーが発生しました");
+      setInterestError("エラーが発生しました");
     } finally {
       setIsExpressingInterest(false);
     }
@@ -406,7 +408,7 @@ export default function InterviewPage({
   if (isFetching) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">読み込み中...</p>
+        <p className="text-muted-foreground text-pretty">読み込み中...</p>
       </div>
     );
   }
@@ -414,7 +416,7 @@ export default function InterviewPage({
   if (!agentInfo) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground mb-4">
+        <p className="text-muted-foreground mb-4 text-pretty">
           エージェントが見つかりません
         </p>
         <Link href="/recruiter/agents">
@@ -432,7 +434,7 @@ export default function InterviewPage({
         <Link href="/recruiter/agents">
           <Button variant="ghost" size="sm">
             <svg
-              className="w-4 h-4 mr-2"
+              className="size-4 mr-2"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -448,76 +450,85 @@ export default function InterviewPage({
           </Button>
         </Link>
         <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10">
+          <Avatar className="size-10">
             <AvatarFallback className="bg-primary text-white">
               {agentInfo.user.name[0]}
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-xl font-bold">{agentInfo.user.name}</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-xl font-bold text-balance">
+              {agentInfo.user.name}
+            </h1>
+            <p className="text-sm text-muted-foreground text-pretty">
               AIエージェントとの面接
             </p>
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-3">
-          <div className="w-56">
-            <Select
-              value={selectedJobId || "none"}
-              onValueChange={(value: string) =>
-                setSelectedJobId(value === "none" ? "" : value)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="求人を選択" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">求人を選択</SelectItem>
-                {jobs.map((job) => (
-                  <SelectItem key={job.id} value={job.id}>
-                    {job.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="ml-auto flex flex-col items-end gap-2">
+          <div className="flex items-center gap-3">
+            <div className="w-56">
+              <Select
+                value={selectedJobId || "none"}
+                onValueChange={(value: string) =>
+                  setSelectedJobId(value === "none" ? "" : value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="求人を選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">求人を選択</SelectItem>
+                  {jobs.map((job) => (
+                    <SelectItem key={job.id} value={job.id}>
+                      {job.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {interest ? (
+              <Badge variant="outline" className="py-1.5 px-3">
+                <svg
+                  className="size-4 mr-1.5 text-red-500"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                </svg>
+                興味表明済み
+              </Badge>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={handleExpressInterest}
+                disabled={isExpressingInterest}
+              >
+                <svg
+                  className="size-4 mr-1.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                  />
+                </svg>
+                興味あり
+              </Button>
+            )}
           </div>
-          {interest ? (
-            <Badge variant="outline" className="py-1.5 px-3">
-              <svg
-                className="w-4 h-4 mr-1.5 text-red-500"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-              </svg>
-              興味表明済み
-            </Badge>
-          ) : (
-            <Button
-              variant="outline"
-              onClick={handleExpressInterest}
-              disabled={isExpressingInterest}
-            >
-              <svg
-                className="w-4 h-4 mr-1.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                />
-              </svg>
-              興味あり
-            </Button>
+          {interestError && (
+            <p className="text-xs text-destructive text-pretty" role="alert">
+              {interestError}
+            </p>
           )}
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-4 gap-6 h-[calc(100vh-16rem)]">
+      <div className="grid lg:grid-cols-4 gap-6 h-[calc(100dvh-16rem)]">
         <div className="lg:col-span-3">
           <Card className="h-full flex flex-col">
             <CardContent className="flex-1 p-0 overflow-hidden">
@@ -590,23 +601,23 @@ export default function InterviewPage({
                 <TabsContent value="summary" className="mt-3">
                   {isSummaryLoading ? (
                     <div className="text-center py-4">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground text-pretty">
                         要約を生成中...
                       </p>
                     </div>
                   ) : summary?.summary ? (
                     <div className="space-y-3">
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground text-pretty tabular-nums">
                         {summary.messageCount}件のメッセージを分析
                       </div>
                       <div className="prose prose-sm max-w-none">
-                        <div className="whitespace-pre-wrap text-sm">
+                        <div className="whitespace-pre-wrap text-sm text-pretty">
                           {summary.summary}
                         </div>
                       </div>
                       {summary.evidence && summary.evidence.length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-xs font-medium">
+                          <p className="text-xs font-medium text-balance tabular-nums">
                             根拠パック（参照 {summary.evidence.length}件）
                           </p>
                           <div className="space-y-2">
@@ -619,9 +630,11 @@ export default function InterviewPage({
                                   <span className="font-medium text-foreground">
                                     {item.type}
                                   </span>
-                                  <span>参照 {item.count}回</span>
+                                  <span className="tabular-nums">
+                                    参照 {item.count}回
+                                  </span>
                                 </div>
-                                <p className="text-xs text-muted-foreground mt-1">
+                                <p className="text-xs text-muted-foreground mt-1 text-pretty">
                                   {item.content}
                                 </p>
                               </div>
@@ -640,7 +653,7 @@ export default function InterviewPage({
                     </div>
                   ) : (
                     <div className="text-center py-4 space-y-2">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground text-pretty">
                         {messages.length === 0
                           ? "会話を開始すると要約を生成できます"
                           : "会話の要約を生成します"}
@@ -660,27 +673,29 @@ export default function InterviewPage({
                 <TabsContent value="guide" className="mt-3">
                   {!selectedJobId ? (
                     <div className="text-center py-4">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground text-pretty">
                         求人を選択すると面接設計を表示します
                       </p>
                     </div>
                   ) : isGuideLoading ? (
                     <div className="text-center py-4">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground text-pretty">
                         面接設計を生成中...
                       </p>
                     </div>
                   ) : guide ? (
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <p className="text-sm font-medium">質問テンプレ</p>
+                        <p className="text-sm font-medium text-balance">
+                          質問テンプレ
+                        </p>
                         <div className="space-y-2">
                           {guide.questions.map((question, index) => (
                             <div
                               key={`${question}-${index}`}
                               className="rounded-md border border-muted p-2"
                             >
-                              <p className="text-sm">{question}</p>
+                              <p className="text-sm text-pretty">{question}</p>
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -696,8 +711,10 @@ export default function InterviewPage({
 
                       {guide.missingInfo.length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-sm font-medium">不足情報の指摘</p>
-                          <ul className="space-y-1 text-sm text-muted-foreground">
+                          <p className="text-sm font-medium text-balance">
+                            不足情報の指摘
+                          </p>
+                          <ul className="space-y-1 text-sm text-muted-foreground text-pretty">
                             {guide.missingInfo.map((item) => (
                               <li key={item}>・{item}</li>
                             ))}
@@ -707,8 +724,10 @@ export default function InterviewPage({
 
                       {guide.focusAreas && guide.focusAreas.length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-sm font-medium">重点観点</p>
-                          <ul className="space-y-1 text-sm text-muted-foreground">
+                          <p className="text-sm font-medium text-balance">
+                            重点観点
+                          </p>
+                          <ul className="space-y-1 text-sm text-muted-foreground text-pretty">
                             {guide.focusAreas.map((item) => (
                               <li key={item}>・{item}</li>
                             ))}
@@ -718,7 +737,7 @@ export default function InterviewPage({
 
                       {followUps.length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-sm font-medium">
+                          <p className="text-sm font-medium text-balance">
                             直近回答の深掘り候補
                           </p>
                           <div className="space-y-2">
@@ -739,7 +758,7 @@ export default function InterviewPage({
                     </div>
                   ) : (
                     <div className="text-center py-4">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground text-pretty">
                         面接設計を取得できませんでした
                       </p>
                     </div>

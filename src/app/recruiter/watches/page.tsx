@@ -6,6 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -14,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 interface Watch {
   id: string;
@@ -59,6 +70,11 @@ export default function WatchesPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Watch | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [newWatch, setNewWatch] = useState({
     name: "",
     skills: "",
@@ -98,6 +114,8 @@ export default function WatchesPage() {
   }, [fetchWatches, fetchNotifications]);
 
   const handleCreateWatch = async () => {
+    setIsCreating(true);
+    setCreateError(null);
     try {
       const res = await fetch("/api/recruiter/watches", {
         method: "POST",
@@ -125,9 +143,15 @@ export default function WatchesPage() {
           experienceLevel: "",
         });
         fetchWatches();
+      } else {
+        const data = await res.json();
+        setCreateError(data.error || "作成に失敗しました");
       }
     } catch (error) {
       console.error("Failed to create watch:", error);
+      setCreateError("作成に失敗しました");
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -147,16 +171,24 @@ export default function WatchesPage() {
   };
 
   const handleDeleteWatch = async (watchId: string) => {
-    if (!confirm("このウォッチを削除しますか？")) return;
+    setIsDeleting(true);
+    setDeleteError(null);
     try {
       const res = await fetch(`/api/recruiter/watches/${watchId}`, {
         method: "DELETE",
       });
       if (res.ok) {
         fetchWatches();
+        setDeleteTarget(null);
+      } else {
+        const data = await res.json();
+        setDeleteError(data.error || "削除に失敗しました");
       }
     } catch (error) {
       console.error("Failed to delete watch:", error);
+      setDeleteError("削除に失敗しました");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -179,12 +211,20 @@ export default function WatchesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">ウォッチリスト</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-3xl font-bold text-balance">ウォッチリスト</h1>
+          <p className="text-muted-foreground mt-1 text-pretty">
             条件に合う新規候補者を自動で通知します
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              setCreateError(null);
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button>新規ウォッチ作成</Button>
           </DialogTrigger>
@@ -247,9 +287,18 @@ export default function WatchesPage() {
                   ))}
                 </select>
               </div>
-              <Button onClick={handleCreateWatch} className="w-full">
-                作成
+              <Button
+                onClick={handleCreateWatch}
+                className="w-full"
+                disabled={isCreating}
+              >
+                {isCreating ? "作成中..." : "作成"}
               </Button>
+              {createError && (
+                <p className="text-sm text-destructive text-pretty" role="alert">
+                  {createError}
+                </p>
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -258,16 +307,16 @@ export default function WatchesPage() {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Watches List */}
         <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-lg font-semibold text-balance tabular-nums">
             登録済みウォッチ ({watches.length})
           </h2>
 
           {isLoading ? (
-            <p className="text-muted-foreground">読み込み中...</p>
+            <p className="text-muted-foreground text-pretty">読み込み中...</p>
           ) : watches.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground mb-4">
+                <p className="text-muted-foreground mb-4 text-pretty">
                   まだウォッチがありません
                 </p>
                 <Button onClick={() => setIsDialogOpen(true)}>
@@ -305,7 +354,10 @@ export default function WatchesPage() {
                           variant="ghost"
                           size="sm"
                           className="text-destructive"
-                          onClick={() => handleDeleteWatch(watch.id)}
+                          onClick={() => {
+                            setDeleteTarget(watch);
+                            setDeleteError(null);
+                          }}
                         >
                           削除
                         </Button>
@@ -347,11 +399,11 @@ export default function WatchesPage() {
                         </div>
                       )}
                       {watch.experienceLevel && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground text-pretty">
                           経験レベル: {experienceLabels[watch.experienceLevel]}
                         </p>
                       )}
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground tabular-nums">
                         通知数: {watch._count.notifications}件
                       </p>
                     </div>
@@ -364,10 +416,10 @@ export default function WatchesPage() {
 
         {/* Notifications */}
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-lg font-semibold text-balance">
             通知
             {unreadCount > 0 && (
-              <Badge variant="destructive" className="ml-2">
+              <Badge variant="destructive" className="ml-2 tabular-nums">
                 {unreadCount}
               </Badge>
             )}
@@ -376,7 +428,7 @@ export default function WatchesPage() {
           <Card>
             <CardContent className="p-0">
               {notifications.length === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground text-center">
+                <p className="p-4 text-sm text-muted-foreground text-center text-pretty">
                   通知はありません
                 </p>
               ) : (
@@ -384,14 +436,17 @@ export default function WatchesPage() {
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`p-4 ${!notification.isRead ? "bg-muted/50" : ""}`}
+                      className={cn(
+                        "p-4",
+                        !notification.isRead && "bg-muted/50",
+                      )}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">
                             {notification.title}
                           </p>
-                          <p className="text-xs text-muted-foreground mt-1">
+                          <p className="text-xs text-muted-foreground mt-1 text-pretty">
                             {notification.message}
                           </p>
                           {notification.relatedAgent && (
@@ -414,7 +469,7 @@ export default function WatchesPage() {
                           </Button>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">
+                      <p className="text-xs text-muted-foreground mt-2 tabular-nums">
                         {new Date(notification.createdAt).toLocaleDateString(
                           "ja-JP",
                         )}
@@ -427,6 +482,44 @@ export default function WatchesPage() {
           </Card>
         </div>
       </div>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ウォッチを削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              削除したウォッチは元に戻せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                if (deleteTarget) {
+                  handleDeleteWatch(deleteTarget.id);
+                }
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "削除中..." : "削除する"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+          {deleteError && (
+            <p className="text-xs text-destructive text-pretty" role="alert">
+              {deleteError}
+            </p>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

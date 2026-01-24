@@ -68,7 +68,7 @@ export default function RecruiterLayout({
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-dvh flex items-center justify-center">
         <p>Loading...</p>
       </div>
     );
@@ -79,7 +79,7 @@ export default function RecruiterLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-dvh bg-gray-50">
       <header className="bg-white border-b sticky top-0 z-50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
@@ -109,7 +109,7 @@ export default function RecruiterLayout({
                   className="hidden md:flex gap-1.5 py-1"
                 >
                   <svg
-                    className="w-4 h-4"
+                    className="size-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -121,7 +121,7 @@ export default function RecruiterLayout({
                       d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  <span className="font-semibold">
+                  <span className="font-semibold tabular-nums">
                     {subscription.pointBalance}
                   </span>
                   <span className="text-muted-foreground">pt</span>
@@ -134,9 +134,10 @@ export default function RecruiterLayout({
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="relative h-8 w-8 rounded-full"
+                    className="relative size-8 rounded-full"
+                    aria-label="アカウントメニュー"
                   >
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="size-8">
                       <AvatarFallback>
                         {session.user?.companyName?.[0] || "R"}
                       </AvatarFallback>

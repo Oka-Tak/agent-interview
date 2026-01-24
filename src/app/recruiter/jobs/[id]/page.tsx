@@ -7,6 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -69,6 +79,9 @@ export default function JobDetailPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMatching, setIsMatching] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchJob = useCallback(async () => {
     try {
@@ -135,25 +148,36 @@ export default function JobDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm("この求人を削除しますか？")) return;
+    setIsDeleting(true);
+    setDeleteError(null);
     try {
       const res = await fetch(`/api/recruiter/jobs/${jobId}`, {
         method: "DELETE",
       });
       if (res.ok) {
         router.push("/recruiter/jobs");
+      } else {
+        const data = await res.json();
+        setDeleteError(data.error || "削除に失敗しました");
       }
     } catch (error) {
       console.error("Failed to delete job:", error);
+      setDeleteError("削除に失敗しました");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   if (isLoading) {
-    return <p className="text-muted-foreground">読み込み中...</p>;
+    return <p className="text-muted-foreground text-pretty">読み込み中...</p>;
   }
 
   if (!job) {
-    return <p className="text-muted-foreground">求人が見つかりません</p>;
+    return (
+      <p className="text-muted-foreground text-pretty">
+        求人が見つかりません
+      </p>
+    );
   }
 
   return (
@@ -168,8 +192,8 @@ export default function JobDetailPage() {
               ← 求人一覧
             </Link>
           </div>
-          <h1 className="text-3xl font-bold">{job.title}</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-3xl font-bold text-balance">{job.title}</h1>
+          <p className="text-muted-foreground mt-1 text-pretty tabular-nums">
             {job.location || "勤務地未設定"}
             {job.isRemote && " ・ リモート可"}
             {job.salaryMin &&
@@ -190,7 +214,14 @@ export default function JobDetailPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="destructive" size="sm" onClick={handleDelete}>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              setDeleteDialogOpen(true);
+              setDeleteError(null);
+            }}
+          >
             削除
           </Button>
         </div>
@@ -199,7 +230,7 @@ export default function JobDetailPage() {
       <Tabs defaultValue="details">
         <TabsList>
           <TabsTrigger value="details">求人詳細</TabsTrigger>
-          <TabsTrigger value="matches">
+          <TabsTrigger value="matches" className="tabular-nums">
             マッチング ({job._count.matches})
           </TabsTrigger>
         </TabsList>
@@ -211,28 +242,30 @@ export default function JobDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-medium mb-2">詳細</h4>
-                <p className="text-sm whitespace-pre-wrap">{job.description}</p>
+                <h4 className="font-medium mb-2 text-balance">詳細</h4>
+                <p className="text-sm whitespace-pre-wrap text-pretty">
+                  {job.description}
+                </p>
               </div>
               {job.requirements && (
                 <div>
-                  <h4 className="font-medium mb-2">必須要件</h4>
-                  <p className="text-sm whitespace-pre-wrap">
+                  <h4 className="font-medium mb-2 text-balance">必須要件</h4>
+                  <p className="text-sm whitespace-pre-wrap text-pretty">
                     {job.requirements}
                   </p>
                 </div>
               )}
               {job.preferredSkills && (
                 <div>
-                  <h4 className="font-medium mb-2">歓迎スキル</h4>
-                  <p className="text-sm whitespace-pre-wrap">
+                  <h4 className="font-medium mb-2 text-balance">歓迎スキル</h4>
+                  <p className="text-sm whitespace-pre-wrap text-pretty">
                     {job.preferredSkills}
                   </p>
                 </div>
               )}
               {job.skills.length > 0 && (
                 <div>
-                  <h4 className="font-medium mb-2">必須スキル</h4>
+                  <h4 className="font-medium mb-2 text-balance">必須スキル</h4>
                   <div className="flex flex-wrap gap-1">
                     {job.skills.map((skill) => (
                       <Badge key={skill} variant="secondary">
@@ -248,7 +281,7 @@ export default function JobDetailPage() {
 
         <TabsContent value="matches" className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground text-pretty tabular-nums">
               マッチした候補者: {job._count.matches}名
             </p>
             <Button onClick={handleRunMatching} disabled={isMatching}>
@@ -259,7 +292,7 @@ export default function JobDetailPage() {
           {job.matches.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground mb-4">
+                <p className="text-muted-foreground mb-4 text-pretty">
                   まだマッチング候補がいません
                 </p>
                 <Button onClick={handleRunMatching} disabled={isMatching}>
@@ -275,7 +308,7 @@ export default function JobDetailPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">{match.agent.user.name}</p>
-                        <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                        <div className="flex gap-4 text-sm text-muted-foreground mt-1 tabular-nums">
                           <span>総合: {Math.round(match.score * 100)}%</span>
                           <span>
                             スキル: {Math.round(match.scoreDetails.skill * 100)}
@@ -310,6 +343,42 @@ export default function JobDetailPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) {
+            setDeleteError(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>求人を削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              削除した求人は元に戻せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                handleDelete();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "削除中..." : "削除する"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+          {deleteError && (
+            <p className="text-xs text-destructive text-pretty" role="alert">
+              {deleteError}
+            </p>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

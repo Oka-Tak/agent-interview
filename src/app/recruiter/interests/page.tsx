@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 interface Interest {
   id: string;
@@ -68,6 +70,10 @@ export default function InterestsPage() {
   const [messageContent, setMessageContent] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
+  const [requestErrors, setRequestErrors] = useState<Record<string, string>>(
+    {},
+  );
+  const [messageError, setMessageError] = useState<string | null>(null);
 
   const fetchInterests = useCallback(async () => {
     try {
@@ -106,11 +112,8 @@ export default function InterestsPage() {
   }, [selectedInterest, fetchMessages]);
 
   const handleRequestContact = async (interest: Interest) => {
-    if (!confirm("連絡先開示をリクエストしますか？")) {
-      return;
-    }
-
     setIsRequesting(true);
+    setRequestErrors((prev) => ({ ...prev, [interest.id]: "" }));
     try {
       const response = await fetch(`/api/interests/${interest.id}/request`, {
         method: "POST",
@@ -135,20 +138,19 @@ export default function InterestsPage() {
               : i,
           ),
         );
-        if (data.status === "CONTACT_DISCLOSED") {
-          alert("連絡先が開示されました");
-        } else if (data.status === "CONTACT_REQUESTED") {
-          alert("連絡先開示をリクエストしました");
-        } else if (data.status === "DECLINED") {
-          alert("候補者が辞退しました");
-        }
       } else {
         const data = await response.json();
-        alert(data.error || "エラーが発生しました");
+        setRequestErrors((prev) => ({
+          ...prev,
+          [interest.id]: data.error || "エラーが発生しました",
+        }));
       }
     } catch (error) {
       console.error("Failed to request contact:", error);
-      alert("エラーが発生しました");
+      setRequestErrors((prev) => ({
+        ...prev,
+        [interest.id]: "エラーが発生しました",
+      }));
     } finally {
       setIsRequesting(false);
     }
@@ -158,6 +160,7 @@ export default function InterestsPage() {
     if (!selectedInterest || !messageContent.trim()) return;
 
     setIsSending(true);
+    setMessageError(null);
     try {
       const response = await fetch(
         `/api/interests/${selectedInterest.id}/messages`,
@@ -173,11 +176,11 @@ export default function InterestsPage() {
         fetchMessages(selectedInterest.id);
       } else {
         const data = await response.json();
-        alert(data.error || "エラーが発生しました");
+        setMessageError(data.error || "エラーが発生しました");
       }
     } catch (error) {
       console.error("Failed to send message:", error);
-      alert("エラーが発生しました");
+      setMessageError("エラーが発生しました");
     } finally {
       setIsSending(false);
     }
@@ -187,26 +190,27 @@ export default function InterestsPage() {
     setSelectedInterest(interest);
     setMessages([]);
     setMessageContent("");
+    setMessageError(null);
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">興味リスト</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-3xl font-bold text-balance">興味リスト</h1>
+        <p className="text-muted-foreground mt-2 text-pretty">
           興味を表明した候補者の一覧です
         </p>
       </div>
 
       {isLoading ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">読み込み中...</p>
+          <p className="text-muted-foreground text-pretty">読み込み中...</p>
         </div>
       ) : interests.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <svg
-              className="w-12 h-12 mx-auto text-muted-foreground mb-4"
+              className="size-12 mx-auto text-muted-foreground mb-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -218,9 +222,16 @@ export default function InterestsPage() {
                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
               />
             </svg>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-pretty">
               まだ興味を表明した候補者はいません
             </p>
+            <div className="mt-4">
+              <Link href="/recruiter/agents">
+                <Button variant="outline" size="sm">
+                  エージェントを探す
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -229,14 +240,14 @@ export default function InterestsPage() {
             <Card key={interest.id}>
               <CardHeader>
                 <div className="flex items-center gap-4">
-                  <Avatar className="h-12 w-12">
+                  <Avatar className="size-12">
                     <AvatarFallback className="bg-primary text-white text-lg">
                       {interest.user.name[0]}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <CardTitle>{interest.user.name}</CardTitle>
-                    <CardDescription>
+                    <CardDescription className="tabular-nums">
                       {new Date(interest.createdAt).toLocaleDateString("ja-JP")}
                     </CardDescription>
                   </div>
@@ -254,7 +265,7 @@ export default function InterestsPage() {
                   <div className="space-y-2 p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-2 text-sm">
                       <svg
-                        className="w-4 h-4 text-muted-foreground"
+                        className="size-4 text-muted-foreground"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -270,7 +281,7 @@ export default function InterestsPage() {
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <svg
-                        className="w-4 h-4 text-muted-foreground"
+                        className="size-4 text-muted-foreground"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -317,6 +328,11 @@ export default function InterestsPage() {
                     </Button>
                   )}
                 </div>
+                {requestErrors[interest.id] && (
+                  <p className="text-xs text-destructive text-pretty" role="alert">
+                    {requestErrors[interest.id]}
+                  </p>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -339,7 +355,7 @@ export default function InterestsPage() {
 
           <ScrollArea className="h-80 border rounded-lg p-4">
             {messages.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
+              <p className="text-center text-muted-foreground py-8 text-pretty">
                 まだメッセージはありません
               </p>
             ) : (
@@ -347,26 +363,29 @@ export default function InterestsPage() {
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex ${
+                    className={cn(
+                      "flex",
                       message.senderType === "RECRUITER"
                         ? "justify-end"
-                        : "justify-start"
-                    }`}
+                        : "justify-start",
+                    )}
                   >
                     <div
-                      className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                      className={cn(
+                        "max-w-[80%] rounded-lg px-4 py-2",
                         message.senderType === "RECRUITER"
                           ? "bg-primary text-white"
-                          : "bg-gray-100"
-                      }`}
+                          : "bg-gray-100",
+                      )}
                     >
-                      <p className="text-sm">{message.content}</p>
+                      <p className="text-sm text-pretty">{message.content}</p>
                       <p
-                        className={`text-xs mt-1 ${
+                        className={cn(
+                          "text-xs mt-1 tabular-nums",
                           message.senderType === "RECRUITER"
                             ? "text-white/70"
-                            : "text-muted-foreground"
-                        }`}
+                            : "text-muted-foreground",
+                        )}
                       >
                         {new Date(message.createdAt).toLocaleString("ja-JP")}
                       </p>
@@ -377,20 +396,27 @@ export default function InterestsPage() {
             )}
           </ScrollArea>
 
-          <div className="flex gap-2">
-            <Textarea
-              placeholder="メッセージを入力..."
-              value={messageContent}
-              onChange={(e) => setMessageContent(e.target.value)}
-              className="flex-1"
-              rows={2}
-            />
-            <Button
-              onClick={handleSendMessage}
-              disabled={isSending || !messageContent.trim()}
-            >
-              送信
-            </Button>
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <Textarea
+                placeholder="メッセージを入力..."
+                value={messageContent}
+                onChange={(e) => setMessageContent(e.target.value)}
+                className="flex-1"
+                rows={2}
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={isSending || !messageContent.trim()}
+              >
+                送信
+              </Button>
+            </div>
+            {messageError && (
+              <p className="text-xs text-destructive text-pretty" role="alert">
+                {messageError}
+              </p>
+            )}
           </div>
         </DialogContent>
       </Dialog>
