@@ -48,7 +48,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+    <div className="flex min-h-dvh items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Agent Interview</CardTitle>
@@ -78,12 +78,16 @@ export default function LoginPage() {
                 required
               />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && (
+              <p className="text-sm text-destructive text-pretty" role="alert">
+                {error}
+              </p>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "ログイン中..." : "ログイン"}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
+          <div className="mt-4 text-center text-sm text-muted-foreground text-pretty">
             アカウントをお持ちでない場合は
             <Link
               href="/register"

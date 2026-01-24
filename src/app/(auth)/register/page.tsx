@@ -142,7 +142,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+    <div className="flex min-h-dvh items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">アカウント登録</CardTitle>
@@ -190,7 +190,11 @@ export default function RegisterPage() {
                   placeholder="山田 太郎"
                 />
               </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && (
+                <p className="text-sm text-destructive text-pretty" role="alert">
+                  {error}
+                </p>
+              )}
               <Button
                 onClick={handleUserRegister}
                 className="w-full"
@@ -198,7 +202,7 @@ export default function RegisterPage() {
               >
                 {loading ? "登録中..." : "求職者として登録"}
               </Button>
-              <p className="text-xs text-muted-foreground text-center">
+              <p className="text-xs text-muted-foreground text-center text-pretty">
                 AIと対話してあなたのエージェントを作成し、
                 採用担当者との面接を非同期で行えます
               </p>
@@ -247,7 +251,11 @@ export default function RegisterPage() {
                   placeholder="株式会社サンプル"
                 />
               </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && (
+                <p className="text-sm text-destructive text-pretty" role="alert">
+                  {error}
+                </p>
+              )}
               <Button
                 onClick={handleRecruiterRegister}
                 className="w-full"
@@ -255,12 +263,12 @@ export default function RegisterPage() {
               >
                 {loading ? "登録中..." : "採用担当者として登録"}
               </Button>
-              <p className="text-xs text-muted-foreground text-center">
+              <p className="text-xs text-muted-foreground text-center text-pretty">
                 求職者のAIエージェントと非同期で面接を行えます
               </p>
             </TabsContent>
           </Tabs>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
+          <div className="mt-4 text-center text-sm text-muted-foreground text-pretty">
             既にアカウントをお持ちの場合は
             <Link href="/login" className="text-primary hover:underline ml-1">
               ログイン

@@ -3,10 +3,12 @@ import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-dvh bg-white">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-primary">Agent Interview</h1>
+          <h1 className="text-2xl font-bold text-primary text-balance">
+            Agent Interview
+          </h1>
           <div className="space-x-4">
             <Link href="/login">
               <Button variant="ghost">ログイン</Button>
@@ -21,12 +23,12 @@ export default function Home() {
       <main>
         <section className="py-20 px-4">
           <div className="container mx-auto text-center">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-balance">
               AIエージェントで
               <br />
               <span className="text-primary">非同期面接</span>を実現
             </h2>
-            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto text-pretty">
               求職者はAIと対話してパーソナルエージェントを作成。
               採用担当者はいつでもエージェントと面接できます。
             </p>
@@ -47,14 +49,14 @@ export default function Home() {
 
         <section className="py-16 bg-gray-50">
           <div className="container mx-auto px-4">
-            <h3 className="text-2xl font-bold text-center mb-12">
+            <h3 className="text-2xl font-bold text-center mb-12 text-balance">
               Agent Interviewの特徴
             </h3>
             <div className="grid md:grid-cols-3 gap-8">
               <div className="bg-white p-6 rounded-lg shadow-sm">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                <div className="size-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                   <svg
-                    className="w-6 h-6 text-primary"
+                    className="size-6 text-primary"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -67,18 +69,18 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h4 className="text-lg font-semibold mb-2">
+                <h4 className="text-lg font-semibold mb-2 text-balance">
                   AIとの対話でエージェント作成
                 </h4>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-pretty">
                   自然な会話を通じて、あなたの経験やスキルを
                   AIが理解し、パーソナルエージェントを構築します。
                 </p>
               </div>
               <div className="bg-white p-6 rounded-lg shadow-sm">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                <div className="size-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                   <svg
-                    className="w-6 h-6 text-primary"
+                    className="size-6 text-primary"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -91,18 +93,18 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h4 className="text-lg font-semibold mb-2">
+                <h4 className="text-lg font-semibold mb-2 text-balance">
                   ドキュメントアップロード
                 </h4>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-pretty">
                   履歴書やポートフォリオをアップロードすると、
                   AIがその内容を理解し、エージェントに統合します。
                 </p>
               </div>
               <div className="bg-white p-6 rounded-lg shadow-sm">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                <div className="size-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                   <svg
-                    className="w-6 h-6 text-primary"
+                    className="size-6 text-primary"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -115,8 +117,10 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h4 className="text-lg font-semibold mb-2">非同期面接</h4>
-                <p className="text-muted-foreground">
+                <h4 className="text-lg font-semibold mb-2 text-balance">
+                  非同期面接
+                </h4>
+                <p className="text-muted-foreground text-pretty">
                   採用担当者はいつでもあなたのエージェントと
                   対話でき、時間や場所の制約を解消します。
                 </p>
@@ -127,42 +131,50 @@ export default function Home() {
 
         <section className="py-16">
           <div className="container mx-auto px-4">
-            <h3 className="text-2xl font-bold text-center mb-12">利用の流れ</h3>
+            <h3 className="text-2xl font-bold text-center mb-12 text-balance">
+              利用の流れ
+            </h3>
             <div className="grid md:grid-cols-2 gap-12 max-w-4xl mx-auto">
               <div>
-                <h4 className="text-lg font-semibold mb-4 text-primary">
+                <h4 className="text-lg font-semibold mb-4 text-primary text-balance">
                   求職者の方
                 </h4>
                 <ol className="space-y-4">
                   <li className="flex gap-4">
-                    <span className="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-semibold">
+                    <span className="flex-shrink-0 size-8 bg-primary text-white rounded-full flex items-center justify-center font-semibold tabular-nums">
                       1
                     </span>
                     <div>
-                      <p className="font-medium">Googleアカウントで登録</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="font-medium text-balance">
+                        Googleアカウントで登録
+                      </p>
+                      <p className="text-sm text-muted-foreground text-pretty">
                         簡単にアカウントを作成
                       </p>
                     </div>
                   </li>
                   <li className="flex gap-4">
-                    <span className="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-semibold">
+                    <span className="flex-shrink-0 size-8 bg-primary text-white rounded-full flex items-center justify-center font-semibold tabular-nums">
                       2
                     </span>
                     <div>
-                      <p className="font-medium">AIと対話・ドキュメント投稿</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="font-medium text-balance">
+                        AIと対話・ドキュメント投稿
+                      </p>
+                      <p className="text-sm text-muted-foreground text-pretty">
                         経験やスキルを伝える
                       </p>
                     </div>
                   </li>
                   <li className="flex gap-4">
-                    <span className="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-semibold">
+                    <span className="flex-shrink-0 size-8 bg-primary text-white rounded-full flex items-center justify-center font-semibold tabular-nums">
                       3
                     </span>
                     <div>
-                      <p className="font-medium">エージェントを公開</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="font-medium text-balance">
+                        エージェントを公開
+                      </p>
+                      <p className="text-sm text-muted-foreground text-pretty">
                         採用担当者からの面接を待つ
                       </p>
                     </div>
@@ -170,39 +182,45 @@ export default function Home() {
                 </ol>
               </div>
               <div>
-                <h4 className="text-lg font-semibold mb-4 text-primary">
+                <h4 className="text-lg font-semibold mb-4 text-primary text-balance">
                   採用担当者の方
                 </h4>
                 <ol className="space-y-4">
                   <li className="flex gap-4">
-                    <span className="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-semibold">
+                    <span className="flex-shrink-0 size-8 bg-primary text-white rounded-full flex items-center justify-center font-semibold tabular-nums">
                       1
                     </span>
                     <div>
-                      <p className="font-medium">Googleアカウントで登録</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="font-medium text-balance">
+                        Googleアカウントで登録
+                      </p>
+                      <p className="text-sm text-muted-foreground text-pretty">
                         会社名を入力して登録
                       </p>
                     </div>
                   </li>
                   <li className="flex gap-4">
-                    <span className="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-semibold">
+                    <span className="flex-shrink-0 size-8 bg-primary text-white rounded-full flex items-center justify-center font-semibold tabular-nums">
                       2
                     </span>
                     <div>
-                      <p className="font-medium">エージェント一覧を確認</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="font-medium text-balance">
+                        エージェント一覧を確認
+                      </p>
+                      <p className="text-sm text-muted-foreground text-pretty">
                         公開されているエージェントを探す
                       </p>
                     </div>
                   </li>
                   <li className="flex gap-4">
-                    <span className="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-semibold">
+                    <span className="flex-shrink-0 size-8 bg-primary text-white rounded-full flex items-center justify-center font-semibold tabular-nums">
                       3
                     </span>
                     <div>
-                      <p className="font-medium">エージェントと面接</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="font-medium text-balance">
+                        エージェントと面接
+                      </p>
+                      <p className="text-sm text-muted-foreground text-pretty">
                         いつでも非同期で対話
                       </p>
                     </div>
@@ -215,10 +233,10 @@ export default function Home() {
 
         <section className="py-16 bg-primary text-white">
           <div className="container mx-auto px-4 text-center">
-            <h3 className="text-2xl font-bold mb-4">
+            <h3 className="text-2xl font-bold mb-4 text-balance">
               今すぐAgent Interviewを始めましょう
             </h3>
-            <p className="mb-8 text-primary-foreground/80">
+            <p className="mb-8 text-primary-foreground/80 text-pretty">
               無料で登録して、新しい採用体験を
             </p>
             <Link href="/login">
@@ -232,7 +250,9 @@ export default function Home() {
 
       <footer className="border-t py-8">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
-          <p>&copy; 2024 Agent Interview. All rights reserved.</p>
+          <p className="text-pretty">
+            &copy; 2024 Agent Interview. All rights reserved.
+          </p>
         </div>
       </footer>
     </div>
