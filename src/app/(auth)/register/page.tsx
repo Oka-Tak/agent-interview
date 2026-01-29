@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const defaultTab =
+    searchParams.get("tab") === "recruiter" ? "recruiter" : "user";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -149,7 +152,7 @@ export default function RegisterPage() {
           <CardDescription>アカウントタイプを選択してください</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="user" className="w-full">
+          <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="user">求職者</TabsTrigger>
               <TabsTrigger value="recruiter">採用担当者</TabsTrigger>
@@ -191,7 +194,10 @@ export default function RegisterPage() {
                 />
               </div>
               {error && (
-                <p className="text-sm text-destructive text-pretty" role="alert">
+                <p
+                  className="text-sm text-destructive text-pretty"
+                  role="alert"
+                >
                   {error}
                 </p>
               )}
@@ -252,7 +258,10 @@ export default function RegisterPage() {
                 />
               </div>
               {error && (
-                <p className="text-sm text-destructive text-pretty" role="alert">
+                <p
+                  className="text-sm text-destructive text-pretty"
+                  role="alert"
+                >
                   {error}
                 </p>
               )}

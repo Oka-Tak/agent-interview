@@ -33,12 +33,12 @@ export default function Home() {
               採用担当者はいつでもエージェントと面接できます。
             </p>
             <div className="space-x-4">
-              <Link href="/login">
+              <Link href="/register?tab=user">
                 <Button size="lg" className="px-8">
                   求職者として始める
                 </Button>
               </Link>
-              <Link href="/login">
+              <Link href="/register?tab=recruiter">
                 <Button size="lg" variant="outline" className="px-8">
                   採用担当者として始める
                 </Button>
