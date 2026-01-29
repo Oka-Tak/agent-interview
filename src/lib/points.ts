@@ -3,29 +3,14 @@ import {
   PointTransactionType,
   type Prisma,
 } from "@prisma/client";
+import { InsufficientPointsError, NoSubscriptionError } from "./errors";
 import { prisma } from "./prisma";
 import { POINT_COSTS } from "./stripe";
 
 type TransactionClient = Prisma.TransactionClient;
 
-export class InsufficientPointsError extends Error {
-  constructor(
-    public required: number,
-    public available: number,
-  ) {
-    super(
-      `ポイントが不足しています。必要: ${required}pt, 残高: ${available}pt`,
-    );
-    this.name = "InsufficientPointsError";
-  }
-}
-
-export class NoSubscriptionError extends Error {
-  constructor() {
-    super("サブスクリプションがありません。プランを選択してください。");
-    this.name = "NoSubscriptionError";
-  }
-}
+// Re-export for backward compatibility
+export { InsufficientPointsError, NoSubscriptionError };
 
 /**
  * 採用担当者のポイント残高を取得
