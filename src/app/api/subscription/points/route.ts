@@ -1,27 +1,23 @@
 import { PointTransactionType } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
+import { withRecruiterValidation } from "@/lib/api-utils";
+import { NoSubscriptionError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { PLANS } from "@/lib/stripe";
 
-export async function POST(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
+const purchasePointsSchema = z.object({
+  amount: z
+    .number()
+    .int("ポイント数は整数で指定してください")
+    .min(10, "最低10ポイントから購入できます"),
+});
 
-    if (!session?.user?.recruiterId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+export const POST = withRecruiterValidation(
+  purchasePointsSchema,
+  async (body, req, session) => {
+    const { amount } = body;
     const recruiterId = session.user.recruiterId;
-    const { amount } = await req.json();
-
-    if (!amount || typeof amount !== "number" || amount < 10) {
-      return NextResponse.json(
-        { error: "最低10ポイントから購入できます" },
-        { status: 400 },
-      );
-    }
 
     // サブスクリプションを確認
     const subscription = await prisma.subscription.findUnique({
@@ -29,12 +25,8 @@ export async function POST(req: NextRequest) {
     });
 
     if (!subscription) {
-      return NextResponse.json(
-        {
-          error:
-            "サブスクリプションがありません。先にプランを選択してください。",
-        },
-        { status: 400 },
+      throw new NoSubscriptionError(
+        "サブスクリプションがありません。先にプランを選択してください。",
       );
     }
 
@@ -47,16 +39,16 @@ export async function POST(req: NextRequest) {
 
       // サブスクリプションの残高を更新
       const updatedSubscription = await tx.subscription.update({
-        where: { recruiterId: recruiterId },
+        where: { recruiterId },
         data: { pointBalance: newBalance },
       });
 
       // 取引履歴を記録
       await tx.pointTransaction.create({
         data: {
-          recruiterId: recruiterId,
+          recruiterId,
           type: PointTransactionType.PURCHASE,
-          amount: amount,
+          amount,
           balance: newBalance,
           description: `${amount}ポイント追加購入 (¥${totalPrice.toLocaleString()})`,
         },
@@ -71,11 +63,5 @@ export async function POST(req: NextRequest) {
       purchased: amount,
       price: totalPrice,
     });
-  } catch (error) {
-    console.error("Purchase points error:", error);
-    return NextResponse.json(
-      { error: "ポイント購入に失敗しました" },
-      { status: 500 },
-    );
-  }
-}
+  },
+);
