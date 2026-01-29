@@ -2,6 +2,7 @@ import { type FragmentType, SourceType } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { calculateCoverage } from "@/lib/coverage";
 import { extractFragments, generateChatResponse } from "@/lib/openai";
 import { prisma } from "@/lib/prisma";
 
@@ -83,9 +84,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 全フラグメントを取得して網羅度を計算
+    const allFragments = await prisma.fragment.findMany({
+      where: { userId: session.user.userId },
+      select: { type: true },
+    });
+
+    const coverage = calculateCoverage(allFragments);
+
     return NextResponse.json({
       message: responseMessage,
       fragmentsExtracted,
+      coverage,
     });
   } catch (error) {
     console.error("Chat API error:", error);
