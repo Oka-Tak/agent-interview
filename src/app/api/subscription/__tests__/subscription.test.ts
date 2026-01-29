@@ -84,7 +84,8 @@ describe("サブスクリプションAPI - 結合テスト", () => {
         });
 
         const { GET } = await import("../route");
-        const response = await GET();
+        const request = new NextRequest("http://localhost/api/subscription");
+        const response = await GET(request);
         const data = await response.json();
 
         expect(response.status).toBe(200);
@@ -102,7 +103,8 @@ describe("サブスクリプションAPI - 結合テスト", () => {
         mockPrisma.subscription.findUnique.mockResolvedValue(null);
 
         const { GET } = await import("../route");
-        const response = await GET();
+        const request = new NextRequest("http://localhost/api/subscription");
+        const response = await GET(request);
         const data = await response.json();
 
         expect(response.status).toBe(200);
@@ -116,20 +118,22 @@ describe("サブスクリプションAPI - 結合テスト", () => {
         mockGetServerSession.mockResolvedValue(null);
 
         const { GET } = await import("../route");
-        const response = await GET();
+        const request = new NextRequest("http://localhost/api/subscription");
+        const response = await GET(request);
 
         expect(response.status).toBe(401);
       });
 
-      it("recruiterIdがない場合、401を返す", async () => {
+      it("recruiterIdがない場合、403を返す", async () => {
         mockGetServerSession.mockResolvedValue({
           user: { userId: "user-1" }, // recruiterIdがない
         });
 
         const { GET } = await import("../route");
-        const response = await GET();
+        const request = new NextRequest("http://localhost/api/subscription");
+        const response = await GET(request);
 
-        expect(response.status).toBe(401);
+        expect(response.status).toBe(403);
       });
     });
   });
@@ -349,7 +353,7 @@ describe("サブスクリプションAPI - 結合テスト", () => {
         const data = await response.json();
 
         expect(response.status).toBe(400);
-        expect(data.error).toContain("無効なプランタイプ");
+        expect(data.error).toContain("入力内容に問題があります");
       });
 
       it("planTypeが指定されていない場合、400を返す", async () => {
@@ -491,7 +495,7 @@ describe("サブスクリプションAPI - 結合テスト", () => {
         const data = await response.json();
 
         expect(response.status).toBe(400);
-        expect(data.error).toContain("10ポイント");
+        expect(data.error).toContain("入力内容に問題があります");
       });
 
       it("amountが数値でない場合、400を返す", async () => {
@@ -513,7 +517,7 @@ describe("サブスクリプションAPI - 結合テスト", () => {
         expect(response.status).toBe(400);
       });
 
-      it("サブスクリプションがない場合、400を返す", async () => {
+      it("サブスクリプションがない場合、402を返す", async () => {
         mockGetServerSession.mockResolvedValue({
           user: { recruiterId: "recruiter-1" },
         });
@@ -532,7 +536,7 @@ describe("サブスクリプションAPI - 結合テスト", () => {
         const response = await POST(request);
         const data = await response.json();
 
-        expect(response.status).toBe(400);
+        expect(response.status).toBe(402);
         expect(data.error).toContain("サブスクリプション");
       });
     });
