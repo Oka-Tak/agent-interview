@@ -1,7 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { withRecruiterAuth } from "@/lib/api-utils";
+import { NotFoundError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+
+type RouteContext = { params: Promise<{ id: string }> };
 
 // スキルマッチング計算（Jaccard係数ベース）
 function calculateSkillMatch(
@@ -87,18 +89,9 @@ function calculateExperienceMatch(
 }
 
 // マッチング実行
-export async function POST(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.recruiterId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id: jobId } = await params;
+export const POST = withRecruiterAuth<RouteContext>(
+  async (req, session, context) => {
+    const { id: jobId } = await context!.params;
 
     const job = await prisma.jobPosting.findFirst({
       where: {
@@ -108,7 +101,7 @@ export async function POST(
     });
 
     if (!job) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
+      throw new NotFoundError("求人が見つかりません");
     }
 
     const agents = await prisma.agentProfile.findMany({
@@ -231,29 +224,14 @@ export async function POST(
       totalMatched: matchResults.length,
       candidates: topCandidates,
     });
-  } catch (error) {
-    console.error("Match calculation error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+  },
+);
 
 // マッチ済み候補者一覧取得
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.recruiterId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id: jobId } = await params;
-    const searchParams = request.nextUrl.searchParams;
+export const GET = withRecruiterAuth<RouteContext>(
+  async (req, session, context) => {
+    const { id: jobId } = await context!.params;
+    const searchParams = req.nextUrl.searchParams;
     const minScore = Number.parseFloat(searchParams.get("minScore") || "0");
 
     const job = await prisma.jobPosting.findFirst({
@@ -264,7 +242,7 @@ export async function GET(
     });
 
     if (!job) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
+      throw new NotFoundError("求人が見つかりません");
     }
 
     const candidates = await prisma.candidateMatch.findMany({
@@ -301,11 +279,5 @@ export async function GET(
     });
 
     return NextResponse.json({ candidates });
-  } catch (error) {
-    console.error("Get candidates error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+  },
+);

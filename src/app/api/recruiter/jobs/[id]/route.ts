@@ -1,21 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
+import { handleError, withRecruiterAuth } from "@/lib/api-utils";
+import { NotFoundError, ValidationError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 
+type RouteContext = { params: Promise<{ id: string }> };
+
 // 求人詳細取得
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.recruiterId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id } = await params;
+export const GET = withRecruiterAuth<RouteContext>(
+  async (req, session, context) => {
+    const { id } = await context!.params;
 
     const job = await prisma.jobPosting.findFirst({
       where: {
@@ -58,33 +52,47 @@ export async function GET(
     });
 
     if (!job) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
+      throw new NotFoundError("求人が見つかりません");
     }
 
     return NextResponse.json({ job });
-  } catch (error) {
-    console.error("Get job error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+  },
+);
+
+const jobUpdateSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  requirements: z.string().optional().nullable(),
+  preferredSkills: z.string().optional().nullable(),
+  skills: z.array(z.string()).optional(),
+  keywords: z.array(z.string()).optional(),
+  employmentType: z
+    .enum(["FULL_TIME", "PART_TIME", "CONTRACT", "INTERNSHIP", "FREELANCE"])
+    .optional(),
+  experienceLevel: z
+    .enum(["ENTRY", "JUNIOR", "MID", "SENIOR", "LEAD"])
+    .optional(),
+  location: z.string().optional().nullable(),
+  salaryMin: z.number().optional().nullable(),
+  salaryMax: z.number().optional().nullable(),
+  isRemote: z.boolean().optional(),
+  status: z.enum(["DRAFT", "ACTIVE", "PAUSED", "CLOSED"]).optional(),
+});
 
 // 求人更新
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const session = await getServerSession(authOptions);
+export const PATCH = withRecruiterAuth<RouteContext>(
+  async (req, session, context) => {
+    const { id } = await context!.params;
+    const rawBody = await req.json();
+    const parsed = jobUpdateSchema.safeParse(rawBody);
 
-    if (!session?.user?.recruiterId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!parsed.success) {
+      throw new ValidationError("入力内容に問題があります", {
+        fields: parsed.error.flatten().fieldErrors,
+      });
     }
 
-    const { id } = await params;
-    const body = await request.json();
+    const body = parsed.data;
 
     const existingJob = await prisma.jobPosting.findFirst({
       where: {
@@ -94,55 +102,22 @@ export async function PATCH(
     });
 
     if (!existingJob) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
+      throw new NotFoundError("求人が見つかりません");
     }
 
     const job = await prisma.jobPosting.update({
       where: { id },
-      data: {
-        ...(body.title && { title: body.title }),
-        ...(body.description && { description: body.description }),
-        ...(body.requirements !== undefined && {
-          requirements: body.requirements,
-        }),
-        ...(body.preferredSkills !== undefined && {
-          preferredSkills: body.preferredSkills,
-        }),
-        ...(body.skills && { skills: body.skills }),
-        ...(body.keywords && { keywords: body.keywords }),
-        ...(body.employmentType && { employmentType: body.employmentType }),
-        ...(body.experienceLevel && { experienceLevel: body.experienceLevel }),
-        ...(body.location !== undefined && { location: body.location }),
-        ...(body.salaryMin !== undefined && { salaryMin: body.salaryMin }),
-        ...(body.salaryMax !== undefined && { salaryMax: body.salaryMax }),
-        ...(body.isRemote !== undefined && { isRemote: body.isRemote }),
-        ...(body.status && { status: body.status }),
-      },
+      data: body,
     });
 
     return NextResponse.json({ job });
-  } catch (error) {
-    console.error("Update job error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+  },
+);
 
 // 求人削除
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.recruiterId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id } = await params;
+export const DELETE = withRecruiterAuth<RouteContext>(
+  async (req, session, context) => {
+    const { id } = await context!.params;
 
     const existingJob = await prisma.jobPosting.findFirst({
       where: {
@@ -152,7 +127,7 @@ export async function DELETE(
     });
 
     if (!existingJob) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
+      throw new NotFoundError("求人が見つかりません");
     }
 
     await prisma.jobPosting.delete({
@@ -160,11 +135,5 @@ export async function DELETE(
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Delete job error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+  },
+);

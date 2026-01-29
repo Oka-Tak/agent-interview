@@ -1,108 +1,69 @@
 import type { JobStatus } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
+import { withRecruiterAuth, withRecruiterValidation } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 
 // 求人一覧取得
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
+export const GET = withRecruiterAuth(async (request, session) => {
+  const searchParams = request.nextUrl.searchParams;
+  const status = searchParams.get("status") as JobStatus | null;
 
-    if (!session?.user?.recruiterId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const searchParams = request.nextUrl.searchParams;
-    const status = searchParams.get("status") as JobStatus | null;
-
-    const jobs = await prisma.jobPosting.findMany({
-      where: {
-        recruiterId: session.user.recruiterId,
-        ...(status && { status }),
-      },
-      include: {
-        _count: {
-          select: {
-            matches: true,
-            pipelines: true,
-          },
+  const jobs = await prisma.jobPosting.findMany({
+    where: {
+      recruiterId: session.user.recruiterId,
+      ...(status && { status }),
+    },
+    include: {
+      _count: {
+        select: {
+          matches: true,
+          pipelines: true,
         },
       },
-      orderBy: { updatedAt: "desc" },
-    });
+    },
+    orderBy: { updatedAt: "desc" },
+  });
 
-    return NextResponse.json({ jobs });
-  } catch (error) {
-    console.error("Get jobs error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+  return NextResponse.json({ jobs });
+});
+
+const jobPostingSchema = z.object({
+  title: z.string().min(1, "タイトルは必須です"),
+  description: z.string().min(1, "説明は必須です"),
+  requirements: z.string().optional(),
+  preferredSkills: z.string().optional(),
+  skills: z.array(z.string()).default([]),
+  keywords: z.array(z.string()).default([]),
+  employmentType: z.enum(
+    ["FULL_TIME", "PART_TIME", "CONTRACT", "INTERNSHIP", "FREELANCE"],
+    {
+      message:
+        "雇用形態はFULL_TIME, PART_TIME, CONTRACT, INTERNSHIP, FREELANCEのいずれかを指定してください",
+    },
+  ),
+  experienceLevel: z.enum(["ENTRY", "JUNIOR", "MID", "SENIOR", "LEAD"], {
+    message:
+      "経験レベルはENTRY, JUNIOR, MID, SENIOR, LEADのいずれかを指定してください",
+  }),
+  location: z.string().optional(),
+  salaryMin: z.number().optional(),
+  salaryMax: z.number().optional(),
+  isRemote: z.boolean().default(false),
+  status: z.enum(["DRAFT", "ACTIVE", "PAUSED", "CLOSED"]).default("DRAFT"),
+});
 
 // 求人作成
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.recruiterId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const {
-      title,
-      description,
-      requirements,
-      preferredSkills,
-      skills,
-      keywords,
-      employmentType,
-      experienceLevel,
-      location,
-      salaryMin,
-      salaryMax,
-      isRemote,
-      status,
-    } = body;
-
-    if (!title || !description || !employmentType || !experienceLevel) {
-      return NextResponse.json(
-        {
-          error:
-            "Required fields: title, description, employmentType, experienceLevel",
-        },
-        { status: 400 },
-      );
-    }
-
+export const POST = withRecruiterValidation(
+  jobPostingSchema,
+  async (body, req, session) => {
     const job = await prisma.jobPosting.create({
       data: {
         recruiterId: session.user.recruiterId,
-        title,
-        description,
-        requirements,
-        preferredSkills,
-        skills: skills || [],
-        keywords: keywords || [],
-        employmentType,
-        experienceLevel,
-        location,
-        salaryMin,
-        salaryMax,
-        isRemote: isRemote || false,
-        status: status || "DRAFT",
+        ...body,
       },
     });
 
     return NextResponse.json({ job }, { status: 201 });
-  } catch (error) {
-    console.error("Create job error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+  },
+);
