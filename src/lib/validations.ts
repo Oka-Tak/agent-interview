@@ -39,6 +39,18 @@ export const inviteAcceptSchema = z.object({
     .max(100, "パスワードは100文字以下にしてください"),
 });
 
+export const inviteUpdateSchema = z.object({
+  status: z.enum(["REVOKED"], {
+    message: "無効なステータスです",
+  }),
+});
+
+export const memberUpdateSchema = z.object({
+  status: z.enum(["ACTIVE", "DISABLED"], {
+    message: "無効なステータスです",
+  }),
+});
+
 // 求人関連
 export const experienceLevelSchema = z.enum([
   "ENTRY",
@@ -183,6 +195,8 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type InviteCreateInput = z.infer<typeof inviteCreateSchema>;
 export type InviteAcceptInput = z.infer<typeof inviteAcceptSchema>;
+export type InviteUpdateInput = z.infer<typeof inviteUpdateSchema>;
+export type MemberUpdateInput = z.infer<typeof memberUpdateSchema>;
 export type JobPostingInput = z.infer<typeof jobPostingSchema>;
 export type WatchCreateInput = z.infer<typeof watchCreateSchema>;
 export type PipelineCreateInput = z.infer<typeof pipelineCreateSchema>;

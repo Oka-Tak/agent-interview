@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -21,13 +21,10 @@ type InviteInfo = {
   status: string;
 };
 
-export default function InviteAcceptPage({
-  params,
-}: {
-  params: { token: string };
-}) {
+export default function InviteAcceptPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = useParams<{ token?: string }>();
   const [info, setInfo] = useState<InviteInfo | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -40,6 +37,12 @@ export default function InviteAcceptPage({
 
   useEffect(() => {
     const fetchInvite = async () => {
+      if (!params?.token) {
+        setStatus("INVALID");
+        setError("招待が見つかりません");
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       const res = await fetch(`/api/invites/${params.token}`);
       const json = await res.json();
@@ -56,10 +59,14 @@ export default function InviteAcceptPage({
       setLoading(false);
     };
     fetchInvite();
-  }, [params.token]);
+  }, [params?.token]);
 
   const handleAccept = async () => {
     if (!info) return;
+    if (!params?.token) {
+      setError("招待が見つかりません");
+      return;
+    }
     if (!password.trim() || password.length < 6) {
       setError("パスワードは6文字以上で入力してください");
       return;

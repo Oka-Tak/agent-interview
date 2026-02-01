@@ -1,5 +1,6 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,11 +47,17 @@ const roleLabel: Record<Member["role"], string> = {
 };
 
 export default function MemberManagementPage() {
+  const { data: session } = useSession();
   const [data, setData] = useState<MembersResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"ADMIN" | "MEMBER">("MEMBER");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(
+    null,
+  );
+  const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null);
+  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
   const [message, setMessage] = useState<{
     type: "success" | "error" | null;
     text: string;
@@ -125,6 +132,109 @@ export default function MemberManagementPage() {
     }
   };
 
+  const handleCancelInvite = async (inviteId: string) => {
+    setCancelingInviteId(inviteId);
+    try {
+      const res = await fetch(`/api/recruiter/invites/${inviteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "REVOKED" }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "招待のキャンセルに失敗しました");
+      }
+      setMessage({ type: "success", text: "招待をキャンセルしました" });
+      await fetchMembers();
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "招待のキャンセルに失敗しました",
+      });
+    } finally {
+      setCancelingInviteId(null);
+    }
+  };
+
+  const handleToggleMemberStatus = async (member: Member) => {
+    if (!member.id) return;
+    if (member.email && member.email === session?.user?.email) {
+      setMessage({ type: "error", text: "自分自身は無効化できません" });
+      return;
+    }
+    const nextStatus = member.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
+    setUpdatingMemberId(member.id);
+    try {
+      const res = await fetch(`/api/recruiter/members/${member.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "メンバーの更新に失敗しました");
+      }
+      setMessage({
+        type: "success",
+        text:
+          nextStatus === "DISABLED"
+            ? "メンバーを無効化しました"
+            : "メンバーを有効化しました",
+      });
+      await fetchMembers();
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "メンバーの更新に失敗しました",
+      });
+    } finally {
+      setUpdatingMemberId(null);
+    }
+  };
+
+  const handleDeleteMember = async (member: Member) => {
+    if (!member.id) return;
+    if (member.email && member.email === session?.user?.email) {
+      setMessage({ type: "error", text: "自分自身は削除できません" });
+      return;
+    }
+    const confirmed = window.confirm(
+      `${member.email} を削除（所属解除）しますか？`,
+    );
+    if (!confirmed) return;
+    setDeletingMemberId(member.id);
+    try {
+      const res = await fetch(`/api/recruiter/members/${member.id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "メンバーの削除に失敗しました");
+      }
+      setMessage({
+        type: "success",
+        text: "メンバーを削除（所属解除）しました",
+      });
+      await fetchMembers();
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "メンバーの削除に失敗しました",
+      });
+    } finally {
+      setDeletingMemberId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -169,7 +279,40 @@ export default function MemberManagementPage() {
                           {roleLabel[member.role]}
                         </p>
                       </div>
-                      <Badge variant="outline">{member.status}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{member.status}</Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={
+                            !canInvite ||
+                            updatingMemberId === member.id ||
+                            deletingMemberId === member.id ||
+                            member.status === "INVITED"
+                          }
+                          onClick={() => handleToggleMemberStatus(member)}
+                        >
+                          {updatingMemberId === member.id
+                            ? "更新中..."
+                            : member.status === "DISABLED"
+                              ? "有効化"
+                              : "無効化"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={
+                            !canInvite ||
+                            deletingMemberId === member.id ||
+                            updatingMemberId === member.id
+                          }
+                          onClick={() => handleDeleteMember(member)}
+                        >
+                          {deletingMemberId === member.id
+                            ? "削除中..."
+                            : "削除（所属解除）"}
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -204,6 +347,15 @@ export default function MemberManagementPage() {
                             onClick={() => handleCopy(invite.acceptUrl)}
                           >
                             コピー
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleCancelInvite(invite.id)}
+                            disabled={cancelingInviteId === invite.id}
+                          >
+                            {cancelingInviteId === invite.id
+                              ? "取消中..."
+                              : "キャンセル"}
                           </Button>
                         </div>
                         <p className="text-xs text-muted-foreground">
