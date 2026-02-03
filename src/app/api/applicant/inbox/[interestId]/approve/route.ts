@@ -99,14 +99,14 @@ export const POST = withUserAuth<RouteContext>(
         if (preference === "ALLOW") {
           await tx.companyAccess.upsert({
             where: {
-              userId_recruiterId: {
+              userId_companyId: {
                 userId: interest.userId,
-                recruiterId: interest.recruiterId,
+                companyId: interest.recruiter.companyId,
               },
             },
             create: {
               userId: interest.userId,
-              recruiterId: interest.recruiterId,
+              companyId: interest.recruiter.companyId,
               status: "ALLOW",
             },
             update: { status: "ALLOW" },

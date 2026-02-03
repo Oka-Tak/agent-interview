@@ -82,7 +82,7 @@ export const POST = withRecruiterAuth(async (req, session) => {
     throw new ForbiddenError("このエージェントは非公開です");
   }
 
-  if (await isCompanyAccessDenied(session.user.recruiterId, agent.userId)) {
+  if (await isCompanyAccessDenied(session.user.companyId, agent.userId)) {
     throw new ForbiddenError("この候補者へのアクセスが制限されています");
   }
 

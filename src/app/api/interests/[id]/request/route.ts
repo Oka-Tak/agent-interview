@@ -71,9 +71,9 @@ export const POST = withRecruiterAuth<RouteContext>(
 
     const accessPreference = await prisma.companyAccess.findUnique({
       where: {
-        userId_recruiterId: {
+        userId_companyId: {
           userId: interest.userId,
-          recruiterId: interest.recruiterId,
+          companyId: interest.recruiter.companyId,
         },
       },
     });

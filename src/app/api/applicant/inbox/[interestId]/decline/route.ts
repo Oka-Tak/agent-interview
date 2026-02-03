@@ -30,6 +30,7 @@ export const POST = withUserAuth<RouteContext>(
         recruiter: {
           select: {
             id: true,
+            companyId: true,
             accountId: true,
             company: {
               select: {
@@ -63,14 +64,14 @@ export const POST = withUserAuth<RouteContext>(
     if (preference === "DENY") {
       await prisma.companyAccess.upsert({
         where: {
-          userId_recruiterId: {
+          userId_companyId: {
             userId: interest.userId,
-            recruiterId: interest.recruiterId,
+            companyId: interest.recruiter.companyId,
           },
         },
         create: {
           userId: interest.userId,
-          recruiterId: interest.recruiterId,
+          companyId: interest.recruiter.companyId,
           status: "DENY",
         },
         update: { status: "DENY" },
