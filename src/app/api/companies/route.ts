@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuthValidation } from "@/lib/api-utils";
-import { createCompanyWithOwner } from "@/lib/company";
+import { createCompanyWithOwner, setupCompanyForRecruiter } from "@/lib/company";
 import { ForbiddenError } from "@/lib/errors";
 
 const createCompanySchema = z.object({
@@ -28,10 +28,9 @@ export const POST = withAuthValidation(
       throw new ForbiddenError("既に会社に所属しています");
     }
 
-    const { company, recruiter } = await createCompanyWithOwner(
-      session.user.accountId,
-      body.name,
-    );
+    const { company, recruiter } = session.user.recruiterId
+      ? await setupCompanyForRecruiter(session.user.recruiterId, body.name)
+      : await createCompanyWithOwner(session.user.accountId, body.name);
 
     return NextResponse.json(
       {

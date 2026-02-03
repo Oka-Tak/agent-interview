@@ -1,4 +1,4 @@
-import type { AccountType, CompanyRole } from "@prisma/client";
+import type { AccountType, CompanyMemberStatus, CompanyRole } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import type { ZodError, ZodSchema } from "zod";
@@ -24,6 +24,7 @@ export interface AuthenticatedSession {
     companyId?: string;
     companyName?: string;
     companyRole?: CompanyRole;
+    recruiterStatus?: CompanyMemberStatus;
   };
 }
 
@@ -37,7 +38,9 @@ export interface ApiErrorResponse {
 // 認証済み採用担当者用ハンドラーの型
 type RecruiterHandler<T = unknown> = (
   req: NextRequest,
-  session: AuthenticatedSession & { user: { recruiterId: string } },
+  session: AuthenticatedSession & {
+    user: { recruiterId: string; companyId: string };
+  },
   context?: T,
 ) => Promise<NextResponse>;
 
@@ -45,7 +48,9 @@ type RecruiterHandler<T = unknown> = (
 type RecruiterValidatedHandler<TBody, TContext = unknown> = (
   body: TBody,
   req: NextRequest,
-  session: AuthenticatedSession & { user: { recruiterId: string } },
+  session: AuthenticatedSession & {
+    user: { recruiterId: string; companyId: string };
+  },
   context?: TContext,
 ) => Promise<NextResponse>;
 
@@ -149,10 +154,18 @@ export function withRecruiterAuth<T = unknown>(
         throw new ForbiddenError("採用担当者権限が必要です");
       }
 
+      if (session.user.recruiterStatus && session.user.recruiterStatus !== "ACTIVE") {
+        throw new ForbiddenError("会社へのアクセス権が無効です");
+      }
+
+      if (!session.user.companyId) {
+        throw new ForbiddenError("会社に所属していません");
+      }
+
       return await handler(
         req,
         session as unknown as AuthenticatedSession & {
-          user: { recruiterId: string };
+          user: { recruiterId: string; companyId: string };
         },
         context,
       );
@@ -247,6 +260,10 @@ export function withAuth<T = unknown>(
 
       if (!session?.user) {
         throw new UnauthorizedError();
+      }
+
+      if (session.user.recruiterStatus && session.user.recruiterStatus !== "ACTIVE") {
+        throw new ForbiddenError("会社へのアクセス権が無効です");
       }
 
       return await handler(

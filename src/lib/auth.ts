@@ -71,6 +71,7 @@ export const authOptions: NextAuthOptions = {
             session.user.companyId = account.recruiter.companyId;
             session.user.companyRole = account.recruiter.role;
             session.user.companyName = account.recruiter.company.name;
+            session.user.recruiterStatus = account.recruiter.status;
           }
         }
       }

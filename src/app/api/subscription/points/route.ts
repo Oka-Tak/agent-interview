@@ -19,6 +19,13 @@ export const POST = withRecruiterValidation(
     if (!session.user.companyId) {
       throw new ForbiddenError("会社に所属していません");
     }
+    if (
+      !session.user.companyRole ||
+      (session.user.companyRole !== "OWNER" &&
+        session.user.companyRole !== "ADMIN")
+    ) {
+      throw new ForbiddenError("ポイント購入の権限がありません");
+    }
 
     const { amount } = body;
     const companyId = session.user.companyId;
