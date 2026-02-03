@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withUserAuth } from "@/lib/api-utils";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
@@ -30,8 +30,12 @@ export const POST = withUserAuth<RouteContext>(
         recruiter: {
           select: {
             id: true,
-            companyName: true,
             accountId: true,
+            company: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
