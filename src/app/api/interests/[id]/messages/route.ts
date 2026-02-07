@@ -7,7 +7,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "@/lib/errors";
-import { checkPointBalance, consumePoints } from "@/lib/points";
+import { checkPointBalance, consumePointsWithOperations } from "@/lib/points";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -128,7 +128,21 @@ export const POST = withAuth<RouteContext>(async (req, session, context) => {
     throw new ForbiddenError("このメッセージにアクセスする権限がありません");
   }
 
-  // 採用担当者の場合はポイント消費（会社のポイントを使用）
+  // 送信者IDを決定
+  const senderId = isRecruiter
+    ? session.user.recruiterId!
+    : session.user.userId!;
+
+  // 相手の通知先
+  const notificationAccountId = isRecruiter
+    ? interest.user.accountId
+    : interest.recruiter.accountId;
+
+  const notificationBody = isRecruiter
+    ? `${interest.recruiter.company.name}からメッセージが届きました`
+    : `${interest.user.name}からメッセージが届きました`;
+
+  // 採用担当者の場合はポイント消費 + メッセージ作成を同一トランザクションで
   if (isRecruiter && session.user.companyId) {
     const pointCheck = await checkPointBalance(
       session.user.companyId,
@@ -141,55 +155,78 @@ export const POST = withAuth<RouteContext>(async (req, session, context) => {
       );
     }
 
-    await consumePoints(
+    const { result: message } = await consumePointsWithOperations(
       session.user.companyId,
       "MESSAGE_SEND",
+      async (tx) => {
+        const msg = await tx.directMessage.create({
+          data: {
+            interestId,
+            senderId,
+            senderType: "RECRUITER",
+            recruiterId: session.user.recruiterId,
+            content: content.trim(),
+          },
+        });
+
+        await tx.notification.create({
+          data: {
+            accountId: notificationAccountId,
+            type: "SYSTEM",
+            title: "新しいメッセージ",
+            body: notificationBody,
+            data: {
+              interestId,
+              messageId: msg.id,
+            },
+          },
+        });
+
+        await tx.interest.update({
+          where: { id: interestId },
+          data: { updatedAt: new Date() },
+        });
+
+        return msg;
+      },
       interestId,
       `メッセージ送信: ${interest.user.name}`,
     );
+
+    return NextResponse.json({ message }, { status: 201 });
   }
 
-  // 送信者IDを決定
-  const senderId = isRecruiter
-    ? session.user.recruiterId!
-    : session.user.userId!;
-
-  // メッセージ作成
-  const message = await prisma.directMessage.create({
-    data: {
-      interestId,
-      senderId,
-      senderType: isRecruiter ? "RECRUITER" : "USER",
-      recruiterId: isRecruiter ? session.user.recruiterId : null,
-      userId: isUser ? session.user.userId : null,
-      content: content.trim(),
-    },
-  });
-
-  // 相手に通知
-  const notificationAccountId = isRecruiter
-    ? interest.user.accountId
-    : interest.recruiter.accountId;
-
-  await prisma.notification.create({
-    data: {
-      accountId: notificationAccountId,
-      type: "SYSTEM",
-      title: "新しいメッセージ",
-      body: isRecruiter
-        ? `${interest.recruiter.company.name}からメッセージが届きました`
-        : `${interest.user.name}からメッセージが届きました`,
+  // 求職者の場合はポイント消費不要だがトランザクションで囲む
+  const message = await prisma.$transaction(async (tx) => {
+    const msg = await tx.directMessage.create({
       data: {
         interestId,
-        messageId: message.id,
+        senderId,
+        senderType: "USER",
+        userId: session.user.userId,
+        content: content.trim(),
       },
-    },
-  });
+    });
 
-  // 興味表明のupdatedAtを更新（ソート順に反映）
-  await prisma.interest.update({
-    where: { id: interestId },
-    data: { updatedAt: new Date() },
+    await tx.notification.create({
+      data: {
+        accountId: notificationAccountId,
+        type: "SYSTEM",
+        title: "新しいメッセージ",
+        body: notificationBody,
+        data: {
+          interestId,
+          messageId: msg.id,
+        },
+      },
+    });
+
+    await tx.interest.update({
+      where: { id: interestId },
+      data: { updatedAt: new Date() },
+    });
+
+    return msg;
   });
 
   return NextResponse.json({ message }, { status: 201 });

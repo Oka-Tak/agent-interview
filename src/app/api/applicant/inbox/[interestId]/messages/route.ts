@@ -95,39 +95,43 @@ export const POST = withUserAuth<RouteContext>(
       throw new ForbiddenError("メッセージを送信できません");
     }
 
-    const message = await prisma.directMessage.create({
-      data: {
-        interestId,
-        senderId: session.user.userId,
-        senderType: "USER",
-        userId: session.user.userId,
-        content: content.trim(),
-      },
-      include: {
-        user: {
-          select: { name: true },
-        },
-      },
-    });
-
-    // 採用担当者に通知を送信
-    await prisma.notification.create({
-      data: {
-        accountId: interest.recruiter.accountId,
-        type: "SYSTEM",
-        title: "新しいメッセージ",
-        body: `${interest.user.name}からメッセージが届きました`,
+    const message = await prisma.$transaction(async (tx) => {
+      const msg = await tx.directMessage.create({
         data: {
           interestId,
-          messageId: message.id,
+          senderId: session.user.userId,
+          senderType: "USER",
+          userId: session.user.userId,
+          content: content.trim(),
         },
-      },
-    });
+        include: {
+          user: {
+            select: { name: true },
+          },
+        },
+      });
 
-    // 興味表明のupdatedAtを更新
-    await prisma.interest.update({
-      where: { id: interestId },
-      data: { updatedAt: new Date() },
+      // 採用担当者に通知を送信
+      await tx.notification.create({
+        data: {
+          accountId: interest.recruiter.accountId,
+          type: "SYSTEM",
+          title: "新しいメッセージ",
+          body: `${interest.user.name}からメッセージが届きました`,
+          data: {
+            interestId,
+            messageId: msg.id,
+          },
+        },
+      });
+
+      // 興味表明のupdatedAtを更新
+      await tx.interest.update({
+        where: { id: interestId },
+        data: { updatedAt: new Date() },
+      });
+
+      return msg;
     });
 
     return NextResponse.json(
