@@ -79,23 +79,25 @@ export const POST = withRecruiterAuth<RouteContext>(
     });
 
     if (accessPreference?.status === "DENY") {
-      await prisma.interest.update({
-        where: { id: interestId },
-        data: { status: "DECLINED" },
-      });
+      await prisma.$transaction(async (tx) => {
+        await tx.interest.update({
+          where: { id: interestId },
+          data: { status: "DECLINED" },
+        });
 
-      await prisma.notification.create({
-        data: {
-          accountId: interest.recruiter.accountId,
-          type: "SYSTEM",
-          title: "連絡先開示が辞退されました",
-          body: `${interest.user.name}が連絡先開示を辞退しました`,
+        await tx.notification.create({
           data: {
-            interestId,
-            recruiterId: interest.recruiterId,
-            userId: interest.userId,
+            accountId: interest.recruiter.accountId,
+            type: "SYSTEM",
+            title: "連絡先開示が辞退されました",
+            body: `${interest.user.name}が連絡先開示を辞退しました`,
+            data: {
+              interestId,
+              recruiterId: interest.recruiterId,
+              userId: interest.userId,
+            },
           },
-        },
+        });
       });
 
       return NextResponse.json({ status: "DECLINED", auto: true });
@@ -152,23 +154,25 @@ export const POST = withRecruiterAuth<RouteContext>(
     }
 
     if (interest.status !== "CONTACT_REQUESTED") {
-      await prisma.interest.update({
-        where: { id: interestId },
-        data: { status: "CONTACT_REQUESTED" },
-      });
+      await prisma.$transaction(async (tx) => {
+        await tx.interest.update({
+          where: { id: interestId },
+          data: { status: "CONTACT_REQUESTED" },
+        });
 
-      await prisma.notification.create({
-        data: {
-          accountId: interest.user.accountId,
-          type: "SYSTEM",
-          title: "連絡先開示のリクエスト",
-          body: `${interest.recruiter.company.name}が連絡先開示をリクエストしました`,
+        await tx.notification.create({
           data: {
-            interestId,
-            recruiterId: interest.recruiterId,
-            companyName: interest.recruiter.company.name,
+            accountId: interest.user.accountId,
+            type: "SYSTEM",
+            title: "連絡先開示のリクエスト",
+            body: `${interest.recruiter.company.name}が連絡先開示をリクエストしました`,
+            data: {
+              interestId,
+              recruiterId: interest.recruiterId,
+              companyName: interest.recruiter.company.name,
+            },
           },
-        },
+        });
       });
     }
 
