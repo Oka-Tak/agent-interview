@@ -87,8 +87,6 @@ resource "aws_ssm_parameter" "stripe_secret_key" {
 }
 
 resource "aws_ssm_parameter" "document_analysis_lambda_arn" {
-  count = var.document_analysis_lambda_arn != "" ? 1 : 0
-
   name  = "${local.prefix}/document-analysis-lambda-arn"
   type  = "String"
   value = var.document_analysis_lambda_arn

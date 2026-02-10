@@ -49,5 +49,4 @@ variable "stripe_secret_key" {
 variable "document_analysis_lambda_arn" {
   description = "ARN of the document analysis Lambda function"
   type        = string
-  default     = ""
 }
