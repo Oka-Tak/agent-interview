@@ -51,3 +51,14 @@ output "s3_bucket_name" {
   description = "S3 documents bucket name"
   value       = module.s3.bucket_name
 }
+
+output "acm_validation_records" {
+  description = "DNS records to add for ACM certificate validation"
+  value = {
+    for dvo in aws_acm_certificate.main.domain_validation_options : dvo.domain_name => {
+      type  = dvo.resource_record_type
+      name  = dvo.resource_record_name
+      value = dvo.resource_record_value
+    }
+  }
+}

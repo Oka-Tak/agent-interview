@@ -14,6 +14,7 @@ locals {
 
 resource "aws_cloudfront_distribution" "main" {
   enabled = true
+  aliases = var.acm_certificate_arn != "" ? [var.host_header] : []
 
   origin {
     domain_name = var.alb_dns_name
@@ -77,7 +78,10 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = var.acm_certificate_arn == ""
+    acm_certificate_arn            = var.acm_certificate_arn != "" ? var.acm_certificate_arn : null
+    ssl_support_method             = var.acm_certificate_arn != "" ? "sni-only" : null
+    minimum_protocol_version       = var.acm_certificate_arn != "" ? "TLSv1.2_2021" : null
   }
 
   tags = local.common_tags

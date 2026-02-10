@@ -114,12 +114,29 @@ module "ecs" {
   target_group_arn           = module.alb.target_group_arn
 }
 
+# --- ACM Certificate (us-east-1, required for CloudFront) ---
+resource "aws_acm_certificate" "main" {
+  provider          = aws.us_east_1
+  domain_name       = var.host_header
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_acm_certificate_validation" "main" {
+  provider        = aws.us_east_1
+  certificate_arn = aws_acm_certificate.main.arn
+}
+
 # --- CloudFront ---
 module "cloudfront" {
   source = "../modules/cloudfront"
 
-  project_name = var.project_name
-  environment  = var.environment
-  alb_dns_name = data.terraform_remote_state.shared.outputs.alb_dns_name
-  host_header  = var.host_header
+  project_name        = var.project_name
+  environment         = var.environment
+  alb_dns_name        = data.terraform_remote_state.shared.outputs.alb_dns_name
+  host_header         = var.host_header
+  acm_certificate_arn = try(aws_acm_certificate_validation.main.certificate_arn, "")
 }

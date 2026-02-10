@@ -17,3 +17,9 @@ variable "host_header" {
   description = "Host header value to forward to the ALB origin"
   type        = string
 }
+
+variable "acm_certificate_arn" {
+  description = "ACM certificate ARN for CloudFront custom domain (must be in us-east-1)"
+  type        = string
+  default     = ""
+}
