@@ -1,17 +1,35 @@
 import * as Minio from "minio";
 
+const isS3 = process.env.STORAGE_PROVIDER === "s3";
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is required when STORAGE_PROVIDER=s3`);
+  }
+  return value;
+}
+
 const minioClient = new Minio.Client({
-  endPoint: process.env.MINIO_ENDPOINT || "localhost",
-  port: Number(process.env.MINIO_PORT) || 9000,
-  useSSL: false,
-  accessKey: process.env.MINIO_ACCESS_KEY || "minioadmin",
-  secretKey: process.env.MINIO_SECRET_KEY || "minioadmin",
+  endPoint: isS3
+    ? "s3.amazonaws.com"
+    : process.env.MINIO_ENDPOINT || "localhost",
+  port: isS3 ? 443 : Number(process.env.MINIO_PORT) || 9000,
+  useSSL: isS3,
+  accessKey: isS3
+    ? requireEnv("MINIO_ACCESS_KEY")
+    : process.env.MINIO_ACCESS_KEY || "minioadmin",
+  secretKey: isS3
+    ? requireEnv("MINIO_SECRET_KEY")
+    : process.env.MINIO_SECRET_KEY || "minioadmin",
+  ...(isS3 && { region: process.env.AWS_REGION || "ap-northeast-1" }),
 });
 
 const BUCKET_NAME =
   process.env.MINIO_BUCKET_NAME || "agent-interview-documents";
 
 export async function ensureBucket() {
+  if (isS3) return;
   const exists = await minioClient.bucketExists(BUCKET_NAME);
   if (!exists) {
     await minioClient.makeBucket(BUCKET_NAME);
