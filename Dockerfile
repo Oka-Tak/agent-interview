@@ -20,6 +20,34 @@ ENV NEXTAUTH_URL="http://localhost:3000"
 RUN npx prisma generate
 RUN npm run build
 
+# Collect prisma CLI dependencies into a single directory
+RUN mkdir -p /prisma-deps/node_modules && \
+    cp -r node_modules/.bin /prisma-deps/node_modules/.bin && \
+    cp -r node_modules/.prisma /prisma-deps/node_modules/.prisma && \
+    cp -r node_modules/prisma /prisma-deps/node_modules/prisma && \
+    cd /app && node -e " \
+      const resolve = require.resolve; \
+      const path = require('path'); \
+      const fs = require('fs'); \
+      const seen = new Set(); \
+      function collect(mod) { \
+        try { \
+          const p = path.dirname(resolve(mod + '/package.json')); \
+          const name = mod; \
+          if (seen.has(name)) return; \
+          seen.add(name); \
+          const dest = '/prisma-deps/node_modules/' + name; \
+          if (!fs.existsSync(dest)) { \
+            fs.cpSync(p, dest, { recursive: true }); \
+          } \
+          const pkg = JSON.parse(fs.readFileSync(p + '/package.json')); \
+          for (const dep of Object.keys(pkg.dependencies || {})) collect(dep); \
+        } catch {} \
+      } \
+      collect('@prisma/config'); \
+      collect('prisma'); \
+    "
+
 # ---- runner ----
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -36,13 +64,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Prisma (for migrations)
+# Prisma (for migrations) - all dependencies included
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.bin ./node_modules/.bin
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/effect ./node_modules/effect
+COPY --from=builder /prisma-deps/node_modules ./node_modules
 
 USER nextjs
 
