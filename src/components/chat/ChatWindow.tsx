@@ -29,6 +29,8 @@ interface ChatWindowProps {
   onSendMessage: (message: string) => void;
   isLoading?: boolean;
   userName?: string;
+  assistantName?: string;
+  assistantAvatarPath?: string | null;
   placeholder?: string;
   draftMessage?: string;
   onDraftChange?: (value: string) => void;
@@ -48,6 +50,8 @@ export function ChatWindow({
   onSendMessage,
   isLoading = false,
   userName,
+  assistantName,
+  assistantAvatarPath,
   placeholder = "メッセージを入力...",
   draftMessage,
   onDraftChange,
@@ -120,6 +124,8 @@ export function ChatWindow({
               content={message.content}
               role={message.role}
               senderName={userName}
+              assistantName={assistantName}
+              assistantAvatarPath={assistantAvatarPath}
               references={message.references}
             />
           ))}
