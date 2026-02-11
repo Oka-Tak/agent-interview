@@ -69,7 +69,7 @@ export function EvaluationForm({
         onChange={(v) => setForm({ ...form, cultureRating: v })}
       />
       <div className="space-y-1">
-        <span className="text-sm">コメント</span>
+        <span className="text-sm font-medium">コメント</span>
         <Textarea
           value={form.comment}
           onChange={(e) => setForm({ ...form, comment: e.target.value })}
@@ -77,7 +77,11 @@ export function EvaluationForm({
           className="min-h-[60px]"
         />
       </div>
-      <Button onClick={handleSave} disabled={isSaving} className="w-full">
+      <Button
+        onClick={handleSave}
+        disabled={isSaving}
+        className="h-8 text-xs px-3 w-full"
+      >
         {isSaving ? "保存中..." : "評価を保存"}
       </Button>
       {saveStatus && (

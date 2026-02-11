@@ -13,7 +13,6 @@ import {
 } from "@/components/interview";
 import type { EvidenceFragment } from "@/components/interview/EvidencePack";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -358,7 +357,8 @@ export default function InterviewPage({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to send message");
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || "メッセージの送信に失敗しました");
       }
 
       const data = await response.json();
@@ -374,11 +374,12 @@ export default function InterviewPage({
       setFollowUps(data.followUps || []);
     } catch (error) {
       console.error("Chat error:", error);
+      const detail =
+        error instanceof Error ? error.message : "不明なエラーが発生しました";
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content:
-          "申し訳ありません。エラーが発生しました。もう一度お試しください。",
+        content: `申し訳ありません。エラーが発生しました：${detail}`,
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
@@ -414,8 +415,8 @@ export default function InterviewPage({
 
   if (isFetching) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground text-pretty">読み込み中...</p>
+      <div className="flex items-center justify-center py-20">
+        <div className="size-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
@@ -469,7 +470,7 @@ export default function InterviewPage({
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-xl font-bold text-balance">
+            <h1 className="text-lg font-bold tracking-tight text-balance">
               {agentInfo.user.name}
             </h1>
             <p className="text-sm text-muted-foreground text-pretty">
@@ -500,16 +501,16 @@ export default function InterviewPage({
               </Select>
             </div>
             {interest ? (
-              <Badge variant="outline" className="py-1.5 px-3">
+              <span className="inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md bg-primary/10 text-primary">
                 <svg
-                  className="size-4 mr-1.5 text-red-500"
+                  className="size-3.5 mr-1 text-red-500"
                   fill="currentColor"
                   viewBox="0 0 24 24"
                 >
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                 </svg>
                 興味表明済み
-              </Badge>
+              </span>
             ) : (
               <Button
                 variant="outline"
@@ -564,7 +565,7 @@ export default function InterviewPage({
         <div className="space-y-4 overflow-y-auto">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">候補者情報</CardTitle>
+              <CardTitle className="text-sm font-medium">候補者情報</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -572,13 +573,12 @@ export default function InterviewPage({
                 <div className="flex flex-wrap gap-1">
                   {allSkills.size > 0 ? (
                     Array.from(allSkills).map((skill) => (
-                      <Badge
+                      <span
                         key={skill}
-                        variant="secondary"
-                        className="text-xs"
+                        className="text-[10px] px-1.5 py-0.5 rounded-md bg-secondary text-secondary-foreground"
                       >
                         {skill}
-                      </Badge>
+                      </span>
                     ))
                   ) : (
                     <p className="text-sm text-muted-foreground">情報なし</p>
@@ -590,7 +590,7 @@ export default function InterviewPage({
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">メモ・評価</CardTitle>
+              <CardTitle className="text-sm font-medium">メモ・評価</CardTitle>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="notes">
@@ -617,10 +617,8 @@ export default function InterviewPage({
                 </TabsContent>
                 <TabsContent value="summary" className="mt-3">
                   {isSummaryLoading ? (
-                    <div className="text-center py-4">
-                      <p className="text-sm text-muted-foreground text-pretty">
-                        要約を生成中...
-                      </p>
+                    <div className="flex items-center justify-center py-20">
+                      <div className="size-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
                     </div>
                   ) : summary?.summary ? (
                     <div className="space-y-3">
@@ -649,7 +647,7 @@ export default function InterviewPage({
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full"
+                        className="h-8 text-xs px-3 w-full"
                         onClick={fetchSummary}
                       >
                         要約を更新
@@ -666,6 +664,7 @@ export default function InterviewPage({
                         <Button
                           variant="outline"
                           size="sm"
+                          className="h-8 text-xs px-3"
                           onClick={fetchSummary}
                         >
                           要約を生成
@@ -682,10 +681,8 @@ export default function InterviewPage({
                       </p>
                     </div>
                   ) : isGuideLoading ? (
-                    <div className="text-center py-4">
-                      <p className="text-sm text-muted-foreground text-pretty">
-                        面接設計を生成中...
-                      </p>
+                    <div className="flex items-center justify-center py-20">
+                      <div className="size-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
                     </div>
                   ) : guide ? (
                     <div className="space-y-4">
@@ -703,7 +700,7 @@ export default function InterviewPage({
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="mt-2"
+                                className="mt-2 h-8 text-xs px-3"
                                 onClick={() => setDraftMessage(question)}
                               >
                                 入力に挿入
