@@ -36,7 +36,9 @@ export default function AgentPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [cardPanelHeight, setCardPanelHeight] = useState<number | undefined>(undefined);
+  const [cardPanelHeight, setCardPanelHeight] = useState<number | undefined>(
+    undefined,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cardPanelRef = useRef<HTMLDivElement>(null);
 
@@ -82,7 +84,7 @@ export default function AgentPage() {
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isLoading]);
+  }, []);
 
   const handleGeneratePrompt = async () => {
     setIsGenerating(true);
@@ -238,7 +240,10 @@ export default function AgentPage() {
       {/* 名刺 + プロンプト — 2カラム、高さ揃え */}
       <div className="grid lg:grid-cols-2 gap-6 items-start">
         {/* 左: 名刺カード + 統計 */}
-        <div ref={cardPanelRef} className="flex flex-col p-6 rounded-xl border bg-card gap-5">
+        <div
+          ref={cardPanelRef}
+          className="flex flex-col p-6 rounded-xl border bg-card gap-5"
+        >
           <div className="flex items-center justify-between">
             <p className="text-[10px] tracking-widest text-muted-foreground uppercase">
               あなたの名刺
@@ -255,6 +260,7 @@ export default function AgentPage() {
               </span>
             )}
           </div>
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: drop zone for avatar upload */}
           <div
             className="flex items-center justify-center relative"
             onDrop={handleDrop}
@@ -435,9 +441,7 @@ export default function AgentPage() {
       <div className="p-6 rounded-xl border bg-card space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold tracking-tight">
-              記憶のかけら
-            </p>
+            <p className="text-sm font-semibold tracking-tight">記憶のかけら</p>
             {fragments.length > 0 && (
               <p className="text-xs text-muted-foreground mt-0.5">
                 {fragments.length} 件
