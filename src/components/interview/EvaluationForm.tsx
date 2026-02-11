@@ -16,15 +16,10 @@ interface EvaluationData {
 
 interface EvaluationFormProps {
   initialData: EvaluationData;
-  matchScore?: number | null;
   onSave: (data: EvaluationData) => Promise<void>;
 }
 
-export function EvaluationForm({
-  initialData,
-  matchScore,
-  onSave,
-}: EvaluationFormProps) {
+export function EvaluationForm({ initialData, onSave }: EvaluationFormProps) {
   const [form, setForm] = useState<EvaluationData>(initialData);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{
@@ -94,14 +89,6 @@ export function EvaluationForm({
         >
           {saveStatus.message}
         </p>
-      )}
-      {typeof matchScore === "number" && (
-        <div className="p-3 bg-primary/10 rounded-lg">
-          <p className="text-sm font-medium text-balance">AIマッチ度スコア</p>
-          <p className="text-2xl font-bold text-primary tabular-nums">
-            {matchScore}%
-          </p>
-        </div>
       )}
     </div>
   );

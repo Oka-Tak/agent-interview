@@ -64,7 +64,6 @@ interface Evaluation {
   technicalRating: number;
   communicationRating: number;
   cultureRating: number;
-  matchScore: number | null;
   comment: string | null;
 }
 
@@ -115,7 +114,7 @@ export default function InterviewPage({
   const [isFetching, setIsFetching] = useState(true);
 
   const [notes, setNotes] = useState<Note[]>([]);
-  const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
+  const [_evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [interest, setInterest] = useState<Interest | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
@@ -611,7 +610,6 @@ export default function InterviewPage({
                 <TabsContent value="evaluation" className="mt-3">
                   <EvaluationForm
                     initialData={evalForm}
-                    matchScore={evaluation?.matchScore}
                     onSave={handleSaveEvaluation}
                   />
                 </TabsContent>
