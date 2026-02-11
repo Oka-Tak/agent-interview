@@ -158,7 +158,7 @@ jobs:
   update-lambda:
     needs: build-lambda
     runs-on: ubuntu-latest
-    if: vars.LAMBDA_FUNCTION_NAME != ''
+    if: (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') && vars.LAMBDA_FUNCTION_NAME != ''
     env:
       ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
     steps:
@@ -201,6 +201,7 @@ jobs:
   migrate-db:
     needs: build-app
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
     env:
       ECS_CLUSTER: ${{ github.ref == 'refs/heads/main' && 'metalk-production' || 'metalk-staging' }}
     steps:
@@ -236,6 +237,7 @@ jobs:
   deploy-ecs:
     needs: [build-app, migrate-db]
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
     env:
       ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
       ECS_CLUSTER: ${{ github.ref == 'refs/heads/main' && 'metalk-production' || 'metalk-staging' }}
