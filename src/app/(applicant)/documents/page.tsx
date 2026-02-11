@@ -1,6 +1,6 @@
 "use client";
 
-import { CloudUpload } from "lucide-react";
+import { CloudUpload, FileText, Plus, Trash2 } from "lucide-react";
 import {
   type DragEvent,
   type MouseEvent,
@@ -317,19 +317,7 @@ export default function DocumentsPage() {
         >
           <DialogTrigger asChild>
             <Button>
-              <svg
-                className="size-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
+              <Plus className="size-4 mr-2" />
               アップロード
             </Button>
           </DialogTrigger>
@@ -401,19 +389,7 @@ export default function DocumentsPage() {
       ) : documents.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <svg
-              className="size-12 mx-auto text-muted-foreground mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
+            <FileText className="size-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground mb-4 text-pretty">
               まだドキュメントがありません
             </p>
@@ -430,19 +406,7 @@ export default function DocumentsPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
-                      <svg
-                        className="size-5 text-primary"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
+                      <FileText className="size-5 text-primary" />
                       {doc.fileName}
                     </CardTitle>
                     <CardDescription className="tabular-nums">
@@ -461,19 +425,7 @@ export default function DocumentsPage() {
                           setDeleteError(null);
                         }}
                       >
-                        <svg
-                          className="size-4 text-destructive"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
+                        <Trash2 className="size-4 text-destructive" />
                       </Button>
                     </div>
                     {doc.analysisStatus === "FAILED" && doc.analysisError && (
