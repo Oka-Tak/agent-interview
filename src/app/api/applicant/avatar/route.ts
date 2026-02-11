@@ -13,16 +13,30 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 // マジックバイトによるファイル形式検証
-const MAGIC_BYTES: [string, number[]][] = [
-  ["image/jpeg", [0xff, 0xd8, 0xff]],
-  ["image/png", [0x89, 0x50, 0x4e, 0x47]],
-  ["image/gif", [0x47, 0x49, 0x46, 0x38]],
-  ["image/webp", [0x52, 0x49, 0x46, 0x46]], // RIFF header
+const MAGIC_BYTES: { offset: number; bytes: number[] }[] = [
+  { offset: 0, bytes: [0xff, 0xd8, 0xff] }, // JPEG
+  { offset: 0, bytes: [0x89, 0x50, 0x4e, 0x47] }, // PNG
+  { offset: 0, bytes: [0x47, 0x49, 0x46, 0x38] }, // GIF
 ];
 
 function validateMagicBytes(buffer: Buffer): boolean {
-  return MAGIC_BYTES.some(([, bytes]) =>
-    bytes.every((byte, i) => buffer[i] === byte),
+  // WebP: RIFFヘッダー(0-3) + "WEBP"シグネチャ(8-11)
+  const isWebP =
+    buffer.length >= 12 &&
+    buffer[0] === 0x52 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x46 &&
+    buffer[8] === 0x57 &&
+    buffer[9] === 0x45 &&
+    buffer[10] === 0x42 &&
+    buffer[11] === 0x50;
+
+  return (
+    isWebP ||
+    MAGIC_BYTES.some(({ offset, bytes }) =>
+      bytes.every((byte, i) => buffer[offset + i] === byte),
+    )
   );
 }
 
@@ -78,10 +92,20 @@ export const POST = withUserAuth(async (req, session) => {
     file.type,
   );
 
-  await prisma.user.update({
-    where: { id: session.user.userId },
-    data: { avatarPath },
-  });
+  try {
+    await prisma.user.update({
+      where: { id: session.user.userId },
+      data: { avatarPath },
+    });
+  } catch (e) {
+    // DB更新失敗時はアップロード済みファイルを削除
+    try {
+      await deleteFile(avatarPath);
+    } catch {
+      console.error("Failed to rollback uploaded avatar:", avatarPath);
+    }
+    throw e;
+  }
 
   const avatarUrl = await getFileUrl(avatarPath);
 
@@ -102,12 +126,19 @@ export const DELETE = withUserAuth(async (_req, session) => {
     return NextResponse.json({ message: "アバターは設定されていません" });
   }
 
-  await deleteFile(user.avatarPath);
+  const { avatarPath } = user;
 
+  // DB更新を先に行い、MinIO削除失敗時も孤立ファイルが残るだけで済むようにする
   await prisma.user.update({
     where: { id: session.user.userId },
     data: { avatarPath: null },
   });
+
+  try {
+    await deleteFile(avatarPath);
+  } catch (e) {
+    console.error("Failed to delete avatar file:", e);
+  }
 
   return NextResponse.json({ message: "アバターを削除しました" });
 });

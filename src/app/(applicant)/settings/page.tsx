@@ -1,5 +1,6 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ interface Settings {
 }
 
 export default function SettingsPage() {
+  const { update: updateSession } = useSession();
   const [settings, setSettings] = useState<Settings>({
     name: "",
     email: null,
@@ -106,6 +108,7 @@ export default function SettingsPage() {
         const data = await response.json();
         setSettings((prev) => ({ ...prev, avatarUrl: data.avatarUrl }));
         setMessage({ type: "success", text: "アバター画像を更新しました" });
+        await updateSession();
       } else {
         const data = await response.json();
         setMessage({
@@ -136,6 +139,7 @@ export default function SettingsPage() {
       if (response.ok) {
         setSettings((prev) => ({ ...prev, avatarUrl: null }));
         setMessage({ type: "success", text: "アバター画像を削除しました" });
+        await updateSession();
       } else {
         const data = await response.json();
         setMessage({
