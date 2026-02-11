@@ -21,7 +21,15 @@ interface Message {
   content: string;
 }
 
-const INITIAL_MESSAGE = `こんにちは！私はあなたのエージェントを作成するためのAIアシスタントです。
+function buildInitialMessage(
+  userName: string | undefined,
+  fragmentCount: number,
+  coverage: ChatCoverageState,
+): string {
+  const name = userName ? `${userName}さん` : "";
+
+  if (fragmentCount === 0) {
+    return `こんにちは${name ? `、${name}` : ""}！私はあなたのエージェントを作成するためのAIアシスタントです。
 
 あなたの経験やスキル、キャリアについて教えてください。以下のような質問に答えていただくことで、あなたを代理するAIエージェントを作成できます：
 
@@ -31,6 +39,37 @@ const INITIAL_MESSAGE = `こんにちは！私はあなたのエージェント�
 - 今後のキャリアの目標
 
 何でも気軽にお話しください！`;
+  }
+
+  const unfulfilledCategories = coverage.categories.filter((c) => !c.fulfilled);
+  const categoryList = unfulfilledCategories
+    .map((c) => `- ${c.label}（あと${c.required - c.current}件）`)
+    .join("\n");
+
+  if (coverage.percentage < 80) {
+    return `おかえりなさい${name ? `、${name}` : ""}！前回までの情報をもとに、続きからお話ししましょう。
+
+現在の情報収集の進捗は${coverage.percentage}%です。${
+      categoryList
+        ? `以下のカテゴリについてもう少し教えていただけると、より良いエージェントが作れます：
+
+${categoryList}
+
+どのトピックからでも構いません。お話しください！`
+        : "どのトピックからでも構いません。お話しください！"
+    }`;
+  }
+
+  const completionSection = categoryList
+    ? `あと少しで完成です。以下の情報があるとさらに良くなります：
+
+${categoryList}`
+    : "十分な情報が集まっています。さらに追加したいエピソードがあればお聞かせください。";
+
+  return `おかえりなさい${name ? `、${name}` : ""}！情報収集の進捗は${coverage.percentage}%で、かなり充実してきました。
+
+${completionSection}`;
+}
 
 const INITIAL_COVERAGE: ChatCoverageState = {
   percentage: 0,
@@ -39,42 +78,77 @@ const INITIAL_COVERAGE: ChatCoverageState = {
   categories: [],
 };
 
+async function* parseSSE(response: Response) {
+  if (!response.body) return;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split("\n\n");
+    buffer = events.pop() ?? "";
+
+    for (const eventStr of events) {
+      const lines = eventStr.split("\n");
+      let event = "";
+      const dataLines: string[] = [];
+      for (const line of lines) {
+        if (line.startsWith("event: ")) event = line.slice(7);
+        if (line.startsWith("data: ")) dataLines.push(line.slice(6));
+      }
+      if (event) yield { event, data: dataLines.join("\n") };
+    }
+  }
+}
+
 export default function ChatPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [fragmentCount, setFragmentCount] = useState(0);
   const [coverage, setCoverage] = useState<ChatCoverageState>(INITIAL_COVERAGE);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
-  const fetchInitialData = useCallback(async () => {
+  const fetchInitialData = useCallback(async (userName: string | undefined) => {
     try {
       const response = await fetch("/api/agents/me");
       if (response.ok) {
         const data = await response.json();
         if (data.fragments) {
-          setFragmentCount(data.fragments.length);
-          // 初期網羅度を計算（APIからcoverageが返ってくる場合に対応）
-          if (data.coverage) {
-            setCoverage(data.coverage);
-          }
+          const count = data.fragments.length;
+          const cov: ChatCoverageState = data.coverage ?? INITIAL_COVERAGE;
+          setFragmentCount(count);
+          setCoverage(cov);
+          setMessages([
+            {
+              id: "initial",
+              role: "assistant",
+              content: buildInitialMessage(userName, count, cov),
+            },
+          ]);
+          return;
         }
       }
     } catch (error) {
       console.error("Failed to fetch initial data:", error);
     }
-  }, []);
-
-  useEffect(() => {
     setMessages([
       {
         id: "initial",
         role: "assistant",
-        content: INITIAL_MESSAGE,
+        content: buildInitialMessage(userName, 0, INITIAL_COVERAGE),
       },
     ]);
-    fetchInitialData();
-  }, [fetchInitialData]);
+  }, []);
+
+  useEffect(() => {
+    if (status === "loading") return;
+    fetchInitialData(session?.user?.name ?? undefined);
+  }, [fetchInitialData, status, session?.user?.name]);
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -102,32 +176,79 @@ export default function ChatPage() {
         throw new Error("Failed to send message");
       }
 
-      const data = await response.json();
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: data.message,
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-
-      if (data.fragmentsExtracted) {
-        setFragmentCount((prev) => prev + data.fragmentsExtracted);
+      if (
+        !response.headers.get("content-type")?.includes("text/event-stream")
+      ) {
+        throw new Error("Unexpected response format");
       }
 
-      if (data.coverage) {
-        setCoverage(data.coverage);
+      const assistantId = crypto.randomUUID();
+      let accumulatedText = "";
+
+      setMessages((prev) => [
+        ...prev,
+        { id: assistantId, role: "assistant", content: "" },
+      ]);
+
+      for await (const { event, data } of parseSSE(response)) {
+        try {
+          if (event === "text") {
+            accumulatedText += JSON.parse(data);
+            const currentText = accumulatedText;
+            setMessages((prev) => {
+              const updated = [...prev];
+              updated[updated.length - 1] = {
+                ...updated[updated.length - 1],
+                content: currentText,
+              };
+              return updated;
+            });
+          } else if (event === "metadata") {
+            const meta = JSON.parse(data);
+            if (meta.fragmentsExtracted) {
+              setFragmentCount((prev) => prev + meta.fragmentsExtracted);
+            }
+            if (meta.coverage) {
+              setCoverage(meta.coverage);
+            }
+          } else if (event === "error") {
+            const errorData = JSON.parse(data);
+            setMessages((prev) => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              updated[updated.length - 1] = {
+                ...last,
+                content: accumulatedText
+                  ? `${accumulatedText}\n\n${errorData.message}`
+                  : errorData.message,
+              };
+              return updated;
+            });
+          }
+        } catch (e) {
+          console.error("SSE event parse error:", e);
+        }
       }
     } catch (error) {
       console.error("Chat error:", error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content:
-          "申し訳ありません。エラーが発生しました。もう一度お試しください。",
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      const errorContent =
+        "申し訳ありません。エラーが発生しました。もう一度お試しください。";
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && !last.content) {
+          const updated = [...prev];
+          updated[updated.length - 1] = { ...last, content: errorContent };
+          return updated;
+        }
+        return [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant" as const,
+            content: errorContent,
+          },
+        ];
+      });
     } finally {
       setIsLoading(false);
     }

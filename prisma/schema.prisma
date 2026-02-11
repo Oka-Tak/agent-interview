@@ -7,6 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum AnalysisStatus {
+  PENDING
+  ANALYZING
+  COMPLETED
+  FAILED
+}
+
 enum AccountType {
   USER
   RECRUITER
@@ -85,13 +92,13 @@ model Account {
 }
 
 model User {
-  id        String  @id @default(uuid())
-  accountId String  @unique
-  account   Account @relation(fields: [accountId], references: [id])
+  id         String  @id @default(uuid())
+  accountId  String  @unique
+  account    Account @relation(fields: [accountId], references: [id])
   name       String
   email      String? // 連絡先開示用
   phone      String? // 連絡先開示用
-  avatarPath String?
+  avatarPath String? // MinIOオブジェクトパス
 
   documents        Document[]
   experiences      Experience[]
@@ -166,13 +173,16 @@ model Invite {
 }
 
 model Document {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  fileName  String
-  filePath  String
-  summary   String?
-  createdAt DateTime @default(now())
+  id              String         @id @default(uuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+  fileName        String
+  filePath        String
+  summary         String?
+  analysisStatus  AnalysisStatus @default(PENDING)
+  analysisError   String?
+  analyzedAt      DateTime?
+  createdAt       DateTime       @default(now())
 }
 
 model Experience {

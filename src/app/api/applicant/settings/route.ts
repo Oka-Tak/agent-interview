@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withUserAuth } from "@/lib/api-utils";
 import { NotFoundError, ValidationError } from "@/lib/errors";
+import { getFileUrl } from "@/lib/minio";
 import { prisma } from "@/lib/prisma";
 
 // 連絡先設定を取得
@@ -20,12 +21,14 @@ export const GET = withUserAuth(async (req, session) => {
     throw new NotFoundError("ユーザーが見つかりません");
   }
 
+  const avatarUrl = user.avatarPath ? await getFileUrl(user.avatarPath) : null;
+
   return NextResponse.json({
     settings: {
       name: user.name,
       email: user.email,
       phone: user.phone,
-      avatarPath: user.avatarPath,
+      avatarUrl,
     },
   });
 });

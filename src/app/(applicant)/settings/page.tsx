@@ -1,5 +1,6 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -18,19 +19,21 @@ interface Settings {
   name: string;
   email: string | null;
   phone: string | null;
-  avatarPath: string | null;
+  avatarUrl: string | null;
 }
 
 export default function SettingsPage() {
+  const { update: updateSession } = useSession();
   const [settings, setSettings] = useState<Settings>({
     name: "",
     email: null,
     phone: null,
-    avatarPath: null,
+    avatarUrl: null,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isDeletingAvatar, setIsDeletingAvatar] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -55,9 +58,51 @@ export default function SettingsPage() {
     fetchSettings();
   }, [fetchSettings]);
 
+  const handleSave = async () => {
+    setIsSaving(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/applicant/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: settings.name,
+          email: settings.email,
+          phone: settings.phone,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSettings((prev) => ({ ...prev, ...data.settings }));
+        setMessage({ type: "success", text: "設定を保存しました" });
+      } else {
+        const data = await response.json();
+        setMessage({ type: "error", text: data.error || "保存に失敗しました" });
+      }
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+      setMessage({ type: "error", text: "保存に失敗しました" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({
+        type: "error",
+        text: "ファイルサイズは5MB以下にしてください",
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
 
     setIsUploadingAvatar(true);
     setMessage(null);
@@ -73,21 +118,19 @@ export default function SettingsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setSettings((prev) => ({ ...prev, avatarPath: data.avatarPath }));
-        setMessage({ type: "success", text: "アバターを更新しました" });
+        setSettings((prev) => ({ ...prev, avatarUrl: data.avatarUrl }));
+        setMessage({ type: "success", text: "アバター画像を更新しました" });
+        await updateSession();
       } else {
         const data = await response.json();
         setMessage({
           type: "error",
-          text: data.error || "アバターのアップロードに失敗しました",
+          text: data.error || "アップロードに失敗しました",
         });
       }
     } catch (error) {
       console.error("Failed to upload avatar:", error);
-      setMessage({
-        type: "error",
-        text: "アバターのアップロードに失敗しました",
-      });
+      setMessage({ type: "error", text: "アップロードに失敗しました" });
     } finally {
       setIsUploadingAvatar(false);
       if (fileInputRef.current) {
@@ -97,7 +140,7 @@ export default function SettingsPage() {
   };
 
   const handleAvatarDelete = async () => {
-    setIsUploadingAvatar(true);
+    setIsDeletingAvatar(true);
     setMessage(null);
 
     try {
@@ -106,49 +149,21 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        setSettings((prev) => ({ ...prev, avatarPath: null }));
-        setMessage({ type: "success", text: "アバターを削除しました" });
+        setSettings((prev) => ({ ...prev, avatarUrl: null }));
+        setMessage({ type: "success", text: "アバター画像を削除しました" });
+        await updateSession();
       } else {
+        const data = await response.json();
         setMessage({
           type: "error",
-          text: "アバターの削除に失敗しました",
+          text: data.error || "削除に失敗しました",
         });
       }
     } catch (error) {
       console.error("Failed to delete avatar:", error);
-      setMessage({
-        type: "error",
-        text: "アバターの削除に失敗しました",
-      });
+      setMessage({ type: "error", text: "削除に失敗しました" });
     } finally {
-      setIsUploadingAvatar(false);
-    }
-  };
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    setMessage(null);
-
-    try {
-      const response = await fetch("/api/applicant/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSettings(data.settings);
-        setMessage({ type: "success", text: "設定を保存しました" });
-      } else {
-        const data = await response.json();
-        setMessage({ type: "error", text: data.error || "保存に失敗しました" });
-      }
-    } catch (error) {
-      console.error("Failed to save settings:", error);
-      setMessage({ type: "error", text: "保存に失敗しました" });
-    } finally {
-      setIsSaving(false);
+      setIsDeletingAvatar(false);
     }
   };
 
@@ -190,80 +205,44 @@ export default function SettingsPage() {
             基本的なプロフィール情報を設定します
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>アバター画像</Label>
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                className="relative group cursor-pointer"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploadingAvatar}
-              >
-                <Avatar className="size-20">
-                  {settings.avatarPath && (
-                    <AvatarImage
-                      src={`/api/applicant/avatar/${settings.avatarPath}`}
-                      alt="アバター"
-                    />
-                  )}
-                  <AvatarFallback className="text-2xl">
-                    {settings.name[0] || "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <svg
-                    className="size-6 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                </div>
-              </button>
-              <div className="space-y-2">
-                <div className="flex gap-2">
+        <CardContent className="space-y-6">
+          <div className="flex items-center gap-6">
+            <Avatar className="size-20">
+              <AvatarImage src={settings.avatarUrl ?? undefined} />
+              <AvatarFallback className="text-2xl">
+                {settings.name?.[0] || "U"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isUploadingAvatar || isDeletingAvatar}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {isUploadingAvatar ? "アップロード中..." : "画像を変更"}
+                </Button>
+                {settings.avatarUrl && (
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploadingAvatar}
+                    disabled={isUploadingAvatar || isDeletingAvatar}
+                    onClick={handleAvatarDelete}
                   >
-                    {isUploadingAvatar ? "処理中..." : "画像を変更"}
+                    {isDeletingAvatar ? "削除中..." : "削除"}
                   </Button>
-                  {settings.avatarPath && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleAvatarDelete}
-                      disabled={isUploadingAvatar}
-                    >
-                      削除
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground text-pretty">
-                  JPEG、PNG、WebP形式（最大2MB）
-                </p>
+                )}
               </div>
+              <p className="text-xs text-muted-foreground text-pretty">
+                JPEG、PNG、WebP、GIF（5MB以下）
+              </p>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleAvatarUpload}
+                accept="image/jpeg,image/png,image/webp,image/gif"
                 className="hidden"
+                onChange={handleAvatarUpload}
               />
             </div>
           </div>

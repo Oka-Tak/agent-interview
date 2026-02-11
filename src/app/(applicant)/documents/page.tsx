@@ -1,5 +1,6 @@
 "use client";
 
+import { CloudUpload, FileText, Plus, Trash2 } from "lucide-react";
 import {
   type DragEvent,
   type MouseEvent,
@@ -35,16 +36,27 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+
+type AnalysisStatus = "PENDING" | "ANALYZING" | "COMPLETED" | "FAILED";
+
+const ACCEPTED_TYPES = [
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+const ACCEPTED_EXTENSIONS = [".pdf", ".txt", ".md", ".docx"];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 interface Document {
   id: string;
   fileName: string;
   summary: string | null;
+  analysisStatus: AnalysisStatus;
+  analysisError: string | null;
+  analyzedAt: string | null;
   createdAt: string;
 }
-
-type AnalyzingState = { [key: string]: boolean };
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -52,15 +64,12 @@ export default function DocumentsPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [analyzing, setAnalyzing] = useState<AnalyzingState>({});
-  const [analysisStatus, setAnalysisStatus] = useState<
-    Record<string, { type: "success" | "error"; message: string }>
-  >({});
   const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const eventSourcesRef = useRef<Map<string, EventSource>>(new Map());
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -80,7 +89,31 @@ export default function DocumentsPage() {
     fetchDocuments();
   }, [fetchDocuments]);
 
+  useEffect(() => {
+    return () => {
+      for (const es of eventSourcesRef.current.values()) {
+        es.close();
+      }
+    };
+  }, []);
+
   const uploadFile = async (file: File) => {
+    const ext = `.${file.name.split(".").pop()?.toLowerCase()}`;
+    if (
+      !ACCEPTED_TYPES.includes(file.type) &&
+      !ACCEPTED_EXTENSIONS.includes(ext)
+    ) {
+      setUploadError(
+        "対応していないファイル形式です。PDF、TXT、MD、DOCXのみアップロードできます。",
+      );
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      setUploadError("ファイルサイズは10MB以下にしてください。");
+      return;
+    }
+
     setIsUploading(true);
     setUploadError(null);
 
@@ -99,6 +132,9 @@ export default function DocumentsPage() {
 
       await fetchDocuments();
       setIsDialogOpen(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (error) {
       console.error("Upload error:", error);
       setUploadError("アップロードに失敗しました");
@@ -113,42 +149,26 @@ export default function DocumentsPage() {
     await uploadFile(file);
   };
 
-  const handleDragOver = (e: DragEvent<HTMLElement>) => {
+  const handleDragOver = (e: DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(true);
   };
 
-  const handleDragLeave = (e: DragEvent<HTMLElement>) => {
+  const handleDragLeave = (e: DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
     setIsDragOver(false);
   };
 
-  const handleDrop = async (e: DragEvent<HTMLElement>) => {
+  const handleDrop = async (e: DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
 
     const file = e.dataTransfer.files[0];
     if (!file) return;
-
-    const allowedTypes = [
-      "application/pdf",
-      "text/plain",
-      "text/markdown",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
-    const allowedExtensions = [".pdf", ".txt", ".md", ".docx"];
-    const ext = `.${file.name.split(".").pop()?.toLowerCase()}`;
-
-    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(ext)) {
-      setUploadError(
-        "対応していないファイル形式です。PDF、テキスト、Markdown、Word（docx）ファイルのみアップロードできます。",
-      );
-      return;
-    }
-
     await uploadFile(file);
   };
 
@@ -177,13 +197,6 @@ export default function DocumentsPage() {
   };
 
   const handleAnalyze = async (id: string) => {
-    setAnalyzing((prev) => ({ ...prev, [id]: true }));
-    setAnalysisStatus((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-
     try {
       const response = await fetch(`/api/documents/${id}/analyze`, {
         method: "POST",
@@ -191,30 +204,96 @@ export default function DocumentsPage() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "解析に失敗しました");
+        throw new Error(data.error || "解析の開始に失敗しました");
       }
 
-      const data = await response.json();
-      setAnalysisStatus((prev) => ({
-        ...prev,
-        [id]: {
-          type: "success",
-          message: `${data.fragmentsCount}件の記憶のかけらを抽出しました`,
-        },
-      }));
+      // サーバーから最新状態を取得（ANALYZING に遷移済み）
       await fetchDocuments();
+
+      // SSE 接続
+      const es = new EventSource(`/api/documents/${id}/analyze/stream`);
+      eventSourcesRef.current.set(id, es);
+
+      es.addEventListener("completed", (event) => {
+        const data = JSON.parse(event.data);
+        setDocuments((prev) =>
+          prev.map((doc) =>
+            doc.id === id
+              ? {
+                  ...doc,
+                  analysisStatus: "COMPLETED" as AnalysisStatus,
+                  summary: data.summary,
+                  analyzedAt: data.analyzedAt,
+                  analysisError: null,
+                }
+              : doc,
+          ),
+        );
+        es.close();
+        eventSourcesRef.current.delete(id);
+      });
+
+      es.addEventListener("failed", (event) => {
+        const data = JSON.parse(event.data);
+        setDocuments((prev) =>
+          prev.map((doc) =>
+            doc.id === id
+              ? {
+                  ...doc,
+                  analysisStatus: "FAILED" as AnalysisStatus,
+                  analysisError: data.error,
+                }
+              : doc,
+          ),
+        );
+        es.close();
+        eventSourcesRef.current.delete(id);
+      });
+
+      es.onerror = () => {
+        es.close();
+        eventSourcesRef.current.delete(id);
+        fetchDocuments();
+      };
     } catch (error) {
       console.error("Analyze error:", error);
-      setAnalysisStatus((prev) => ({
-        ...prev,
-        [id]: {
-          type: "error",
-          message:
-            error instanceof Error ? error.message : "解析に失敗しました",
-        },
-      }));
-    } finally {
-      setAnalyzing((prev) => ({ ...prev, [id]: false }));
+      await fetchDocuments();
+    }
+  };
+
+  const renderStatusBadge = (doc: Document) => {
+    switch (doc.analysisStatus) {
+      case "ANALYZING":
+        return (
+          <Badge variant="secondary" className="animate-pulse">
+            解析中...
+          </Badge>
+        );
+      case "COMPLETED":
+        return <Badge variant="secondary">解析済み</Badge>;
+      case "FAILED":
+        return (
+          <div className="flex items-center gap-2">
+            <Badge variant="destructive">エラー</Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleAnalyze(doc.id)}
+            >
+              再試行
+            </Button>
+          </div>
+        );
+      default:
+        return (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleAnalyze(doc.id)}
+          >
+            解析する
+          </Button>
+        );
     }
   };
 
@@ -233,25 +312,12 @@ export default function DocumentsPage() {
             setIsDialogOpen(open);
             if (!open) {
               setUploadError(null);
-              setIsDragOver(false);
             }
           }}
         >
           <DialogTrigger asChild>
             <Button>
-              <svg
-                className="size-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
+              <Plus className="size-4 mr-2" />
               アップロード
             </Button>
           </DialogTrigger>
@@ -265,73 +331,44 @@ export default function DocumentsPage() {
             <div className="space-y-4">
               <button
                 type="button"
-                className={cn(
-                  "relative w-full rounded-lg border-2 border-dashed p-8 transition-colors cursor-pointer bg-transparent",
-                  isDragOver
-                    ? "border-primary bg-primary/5"
-                    : "border-muted-foreground/25 hover:border-muted-foreground/50",
-                  isUploading && "pointer-events-none opacity-60",
-                )}
+                aria-label="ファイルを選択またはドラッグ&ドロップ"
+                onClick={() => !isUploading && fileInputRef.current?.click()}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <div className="flex flex-col items-center gap-3 text-center">
-                  {isUploading ? (
-                    <>
-                      <svg
-                        className="size-10 text-muted-foreground animate-pulse"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                        />
-                      </svg>
-                      <p className="text-sm text-muted-foreground text-pretty">
-                        アップロード中...
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className="size-10 text-muted-foreground"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                        />
-                      </svg>
-                      <div>
-                        <p className="text-sm font-medium text-pretty">
-                          ファイルをドラッグ&ドロップ、またはクリックして選択
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1 text-pretty">
-                          PDF, TXT, Markdown, DOCX（最大10MB）
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.txt,.md,.docx"
-                onChange={handleFileUpload}
-                className="hidden"
                 disabled={isUploading}
-              />
+                className={`flex w-full flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-8 transition-colors ${
+                  isDragOver
+                    ? "border-primary bg-primary/5"
+                    : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50"
+                } ${isUploading ? "pointer-events-none opacity-50" : "cursor-pointer"}`}
+              >
+                <div className="rounded-full bg-muted p-3">
+                  <CloudUpload className="size-6 text-muted-foreground" />
+                </div>
+                {isUploading ? (
+                  <p className="text-sm text-muted-foreground text-pretty">
+                    アップロード中...
+                  </p>
+                ) : (
+                  <div className="text-center">
+                    <p className="text-sm font-medium">
+                      クリックまたはドラッグ&ドロップ
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      PDF, TXT, MD, DOCX（最大10MB）
+                    </p>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.txt,.md,.docx"
+                  onChange={handleFileUpload}
+                  disabled={isUploading}
+                  className="hidden"
+                />
+              </button>
               {uploadError && (
                 <p
                   className="text-sm text-destructive text-pretty"
@@ -352,19 +389,7 @@ export default function DocumentsPage() {
       ) : documents.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <svg
-              className="size-12 mx-auto text-muted-foreground mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
+            <FileText className="size-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground mb-4 text-pretty">
               まだドキュメントがありません
             </p>
@@ -381,19 +406,7 @@ export default function DocumentsPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
-                      <svg
-                        className="size-5 text-primary"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
+                      <FileText className="size-5 text-primary" />
                       {doc.fileName}
                     </CardTitle>
                     <CardDescription className="tabular-nums">
@@ -402,18 +415,7 @@ export default function DocumentsPage() {
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <div className="flex items-center gap-2">
-                      {doc.summary ? (
-                        <Badge variant="secondary">解析済み</Badge>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleAnalyze(doc.id)}
-                          disabled={analyzing[doc.id]}
-                        >
-                          {analyzing[doc.id] ? "解析中..." : "解析する"}
-                        </Button>
-                      )}
+                      {renderStatusBadge(doc)}
                       <Button
                         variant="ghost"
                         size="icon-sm"
@@ -423,36 +425,15 @@ export default function DocumentsPage() {
                           setDeleteError(null);
                         }}
                       >
-                        <svg
-                          className="size-4 text-destructive"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
+                        <Trash2 className="size-4 text-destructive" />
                       </Button>
                     </div>
-                    {analysisStatus[doc.id] && (
+                    {doc.analysisStatus === "FAILED" && doc.analysisError && (
                       <p
-                        className={cn(
-                          "text-xs text-pretty tabular-nums",
-                          analysisStatus[doc.id].type === "error"
-                            ? "text-destructive"
-                            : "text-primary",
-                        )}
-                        role={
-                          analysisStatus[doc.id].type === "error"
-                            ? "alert"
-                            : undefined
-                        }
+                        className="text-xs text-destructive text-pretty tabular-nums"
+                        role="alert"
                       >
-                        {analysisStatus[doc.id].message}
+                        {doc.analysisError}
                       </p>
                     )}
                   </div>

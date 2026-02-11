@@ -45,7 +45,6 @@ export default function ApplicantLayout({
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [avatarPath, setAvatarPath] = useState<string | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -66,27 +65,14 @@ export default function ApplicantLayout({
     }
   }, [status, router]);
 
-  const fetchAvatarPath = useCallback(async () => {
-    try {
-      const response = await fetch("/api/applicant/settings");
-      if (response.ok) {
-        const data = await response.json();
-        setAvatarPath(data.settings.avatarPath);
-      }
-    } catch (error) {
-      console.error("Failed to fetch avatar:", error);
-    }
-  }, []);
-
   useEffect(() => {
     if (status === "authenticated") {
       fetchNotifications();
-      fetchAvatarPath();
       // 30秒ごとに通知を更新
       const interval = setInterval(fetchNotifications, 30000);
       return () => clearInterval(interval);
     }
-  }, [status, fetchNotifications, fetchAvatarPath]);
+  }, [status, fetchNotifications]);
 
   if (status === "loading") {
     return (
@@ -211,12 +197,7 @@ export default function ApplicantLayout({
                     aria-label="アカウントメニュー"
                   >
                     <Avatar className="size-8">
-                      {avatarPath && (
-                        <AvatarImage
-                          src={`/api/applicant/avatar/${avatarPath}`}
-                          alt="アバター"
-                        />
-                      )}
+                      <AvatarImage src={session.user?.image ?? undefined} />
                       <AvatarFallback>
                         {session.user?.name?.[0] || "U"}
                       </AvatarFallback>
