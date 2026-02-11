@@ -392,18 +392,19 @@ export async function generateConversationSummary(
   conversationText: string,
   candidateName: string,
 ): Promise<string> {
-  const { text } = await generateText({
-    model: defaultModel,
-    maxOutputTokens: 1000,
-    messages: [
-      {
-        role: "system",
-        content:
-          "あなたは採用面接の会話を要約するアシスタントです。日本語で簡潔にまとめてください。",
-      },
-      {
-        role: "user",
-        content: `以下は採用担当者と候補者（${candidateName}）のAIエージェントとの会話です。
+  try {
+    const { text } = await generateText({
+      model: defaultModel,
+      maxOutputTokens: 1000,
+      messages: [
+        {
+          role: "system",
+          content:
+            "あなたは採用面接の会話を要約するアシスタントです。日本語で簡潔にまとめてください。",
+        },
+        {
+          role: "user",
+          content: `以下は採用担当者と候補者（${candidateName}）のAIエージェントとの会話です。
 この会話を要約し、以下の観点で整理してください：
 
 1. **会話の概要**: 何について話し合われたか（2-3文）
@@ -414,11 +415,14 @@ export async function generateConversationSummary(
 
 会話内容:
 ${conversationText}`,
-      },
-    ],
-  });
+        },
+      ],
+    });
 
-  return text;
+    return text;
+  } catch {
+    return "";
+  }
 }
 
 const comparisonSchema = z.object({

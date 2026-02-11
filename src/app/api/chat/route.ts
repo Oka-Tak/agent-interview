@@ -73,6 +73,9 @@ function buildSystemPrompt(
   return prompt;
 }
 
+const NEW_MESSAGE_COUNT = 4;
+const CONTEXT_MESSAGE_COUNT = 4;
+
 const chatSchema = z.object({
   messages: z.array(
     z.object({
@@ -138,8 +141,6 @@ export const POST = withUserValidation(
               { role: "assistant" as const, content: fullText },
             ];
 
-            const NEW_MESSAGE_COUNT = 4;
-            const CONTEXT_MESSAGE_COUNT = 4;
             const newMessages = allMessages.slice(-NEW_MESSAGE_COUNT);
             const newMessagesText = newMessages
               .map((m) => `${m.role}: ${m.content}`)

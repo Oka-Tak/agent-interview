@@ -128,6 +128,12 @@ export default function ChatPage() {
         throw new Error("Failed to send message");
       }
 
+      if (
+        !response.headers.get("content-type")?.includes("text/event-stream")
+      ) {
+        throw new Error("Unexpected response format");
+      }
+
       const assistantId = crypto.randomUUID();
       let accumulatedText = "";
 
@@ -161,9 +167,12 @@ export default function ChatPage() {
             const errorData = JSON.parse(data);
             setMessages((prev) => {
               const updated = [...prev];
+              const last = updated[updated.length - 1];
               updated[updated.length - 1] = {
-                ...updated[updated.length - 1],
-                content: errorData.message,
+                ...last,
+                content: accumulatedText
+                  ? `${accumulatedText}\n\n${errorData.message}`
+                  : errorData.message,
               };
               return updated;
             });
