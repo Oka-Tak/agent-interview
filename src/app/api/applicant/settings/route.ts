@@ -12,6 +12,7 @@ export const GET = withUserAuth(async (req, session) => {
       name: true,
       email: true,
       phone: true,
+      avatarPath: true,
     },
   });
 
@@ -24,6 +25,7 @@ export const GET = withUserAuth(async (req, session) => {
       name: user.name,
       email: user.email,
       phone: user.phone,
+      avatarPath: user.avatarPath,
     },
   });
 });

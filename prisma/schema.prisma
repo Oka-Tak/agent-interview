@@ -88,9 +88,10 @@ model User {
   id        String  @id @default(uuid())
   accountId String  @unique
   account   Account @relation(fields: [accountId], references: [id])
-  name      String
-  email     String? // 連絡先開示用
-  phone     String? // 連絡先開示用
+  name       String
+  email      String? // 連絡先開示用
+  phone      String? // 連絡先開示用
+  avatarPath String?
 
   documents        Document[]
   experiences      Experience[]
