@@ -19,12 +19,14 @@ export async function generateChatResponse(
 export function streamChatResponse(
   systemPrompt: string,
   messages: { role: "user" | "assistant"; content: string }[],
+  options?: { abortSignal?: AbortSignal },
 ) {
   return streamText({
     model: defaultModel,
     messages: [{ role: "system", content: systemPrompt }, ...messages],
     temperature: 0.7,
     maxOutputTokens: 1000,
+    abortSignal: options?.abortSignal,
   });
 }
 
@@ -47,12 +49,14 @@ const fragmentSchema = z.object({
 interface ExtractFragmentsOptions {
   existingFragments?: { type: string; content: string }[];
   contextMessages?: string;
-  newMessages: string;
 }
 
 const EXTRACTION_CONTENT_TRUNCATE = 100;
 
-function buildExtractionInput(options: ExtractFragmentsOptions): string {
+function buildExtractionInput(
+  newMessages: string,
+  options: ExtractFragmentsOptions,
+): string {
   const sections: string[] = [];
 
   if (options.existingFragments && options.existingFragments.length > 0) {
@@ -76,7 +80,7 @@ function buildExtractionInput(options: ExtractFragmentsOptions): string {
   }
 
   sections.push(
-    `## 【新規メッセージ】★ ここから新しい情報を抽出してください ★\n${options.newMessages}`,
+    `## 【新規メッセージ】★ ここから新しい情報を抽出してください ★\n${newMessages}`,
   );
 
   sections.push(
@@ -116,7 +120,7 @@ export async function extractFragments(
     : baseSystemPrompt;
 
   const userContent = options
-    ? buildExtractionInput(options)
+    ? buildExtractionInput(conversationHistory, options)
     : conversationHistory;
 
   try {
@@ -308,11 +312,11 @@ export async function extractTextFromPdfWithVision(
           role: "user",
           content: [
             {
-              type: "text" as const,
+              type: "text",
               text: `このページ（${i + 1}/${pages.length}ページ）のテキストを抽出してください。`,
             },
             {
-              type: "image" as const,
+              type: "image",
               image: pages[i],
               providerOptions: {
                 openai: { imageDetail: "high" },
@@ -422,7 +426,7 @@ const comparisonSchema = z.object({
 
 export async function generateCandidateComparison(
   comparisonPrompt: string,
-): Promise<z.infer<typeof comparisonSchema> | null> {
+): Promise<z.infer<typeof comparisonSchema> | { summary: string }> {
   try {
     const { output } = await generateText({
       model: defaultModel,
@@ -442,8 +446,29 @@ export async function generateCandidateComparison(
       maxOutputTokens: 2000,
     });
 
-    return output;
+    return output ?? { summary: "分析結果を取得できませんでした" };
   } catch {
-    return null;
+    try {
+      const { text } = await generateText({
+        model: defaultModel,
+        messages: [
+          {
+            role: "system",
+            content:
+              "あなたは採用担当者をサポートするアシスタントです。客観的かつ公平に候補者を分析してください。",
+          },
+          {
+            role: "user",
+            content: comparisonPrompt,
+          },
+        ],
+        temperature: 0.5,
+        maxOutputTokens: 2000,
+      });
+
+      return { summary: text };
+    } catch {
+      return { summary: "分析結果を取得できませんでした" };
+    }
   }
 }

@@ -56,12 +56,12 @@ async function* parseSSE(response: Response) {
     for (const eventStr of events) {
       const lines = eventStr.split("\n");
       let event = "";
-      let data = "";
+      const dataLines: string[] = [];
       for (const line of lines) {
         if (line.startsWith("event: ")) event = line.slice(7);
-        if (line.startsWith("data: ")) data = line.slice(6);
+        if (line.startsWith("data: ")) dataLines.push(line.slice(6));
       }
-      if (event) yield { event, data };
+      if (event) yield { event, data: dataLines.join("\n") };
     }
   }
 }

@@ -98,13 +98,24 @@ export const POST = withUserValidation(
     const coverage = calculateCoverage(existingFragments);
     const systemPrompt = buildSystemPrompt(existingFragments, coverage);
 
-    const result = streamChatResponse(systemPrompt, chatMessages);
+    const abortController = new AbortController();
+    const result = streamChatResponse(systemPrompt, chatMessages, {
+      abortSignal: abortController.signal,
+    });
     const stream = new TransformStream();
     const writer = stream.writable.getWriter();
     const encoder = new TextEncoder();
 
-    const writeSSE = (event: string, data: string) =>
-      writer.write(encoder.encode(`event: ${event}\ndata: ${data}\n\n`));
+    const writeSSE = async (event: string, data: string) => {
+      try {
+        await writer.write(
+          encoder.encode(`event: ${event}\ndata: ${data}\n\n`),
+        );
+      } catch {
+        abortController.abort();
+        throw new Error("Client disconnected");
+      }
+    };
 
     (async () => {
       try {
@@ -149,7 +160,6 @@ export const POST = withUserValidation(
             const extractedData = await extractFragments(newMessagesText, {
               existingFragments,
               contextMessages: contextMessagesText,
-              newMessages: newMessagesText,
             });
 
             if (extractedData.fragments && extractedData.fragments.length > 0) {
@@ -215,7 +225,6 @@ export const POST = withUserValidation(
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
-        Connection: "keep-alive",
       },
     });
   },
