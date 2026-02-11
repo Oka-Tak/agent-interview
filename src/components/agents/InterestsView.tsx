@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -47,17 +46,23 @@ interface DirectMessage {
   user: { name: string } | null;
 }
 
-const statusLabels: Record<
-  string,
-  {
-    label: string;
-    variant: "default" | "secondary" | "outline" | "destructive";
-  }
-> = {
-  EXPRESSED: { label: "興味表明済み", variant: "secondary" },
-  CONTACT_REQUESTED: { label: "連絡先リクエスト中", variant: "outline" },
-  CONTACT_DISCLOSED: { label: "連絡先開示済み", variant: "default" },
-  DECLINED: { label: "辞退", variant: "destructive" },
+const statusConfig: Record<string, { label: string; className: string }> = {
+  EXPRESSED: {
+    label: "興味表明済み",
+    className: "bg-primary/10 text-primary",
+  },
+  CONTACT_REQUESTED: {
+    label: "連絡先リクエスト中",
+    className: "bg-amber-500/10 text-amber-600",
+  },
+  CONTACT_DISCLOSED: {
+    label: "連絡先開示済み",
+    className: "bg-emerald-500/10 text-emerald-600",
+  },
+  DECLINED: {
+    label: "辞退",
+    className: "bg-secondary text-secondary-foreground",
+  },
 };
 
 interface InterestsViewProps {
@@ -199,18 +204,18 @@ export function InterestsView({ onSwitchToAll }: InterestsViewProps) {
 
   if (isLoading) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground text-pretty">読み込み中...</p>
+      <div className="flex items-center justify-center py-20">
+        <div className="size-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
 
   if (interests.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center">
+      <div className="text-center py-16">
+        <div className="size-12 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
           <svg
-            className="size-12 mx-auto text-muted-foreground mb-4"
+            className="size-6 text-muted-foreground"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -218,20 +223,20 @@ export function InterestsView({ onSwitchToAll }: InterestsViewProps) {
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
+              strokeWidth={1.5}
               d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
             />
           </svg>
-          <p className="text-muted-foreground text-pretty">
-            まだ興味を表明した候補者はいません
-          </p>
-          <div className="mt-4">
-            <Button variant="outline" size="sm" onClick={onSwitchToAll}>
-              エージェントを探す
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          まだ興味を表明した候補者はいません
+        </p>
+        <div className="mt-4">
+          <Button variant="outline" size="sm" onClick={onSwitchToAll}>
+            エージェントを探す
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -249,7 +254,7 @@ export function InterestsView({ onSwitchToAll }: InterestsViewProps) {
                       alt={interest.user.name}
                     />
                   )}
-                  <AvatarFallback className="bg-primary text-white text-lg">
+                  <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                     {interest.user.name[0]}
                   </AvatarFallback>
                 </Avatar>
@@ -259,13 +264,15 @@ export function InterestsView({ onSwitchToAll }: InterestsViewProps) {
                     {new Date(interest.createdAt).toLocaleDateString("ja-JP")}
                   </CardDescription>
                 </div>
-                <Badge
-                  variant={
-                    statusLabels[interest.status]?.variant || "secondary"
-                  }
+                <span
+                  className={cn(
+                    "text-[10px] font-medium px-2 py-0.5 rounded-md shrink-0",
+                    statusConfig[interest.status]?.className ??
+                      "bg-secondary text-secondary-foreground",
+                  )}
                 >
-                  {statusLabels[interest.status]?.label || interest.status}
-                </Badge>
+                  {statusConfig[interest.status]?.label ?? interest.status}
+                </span>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">

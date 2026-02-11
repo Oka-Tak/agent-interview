@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 interface Agent {
   id: string;
@@ -182,9 +182,8 @@ export function AgentsAllView({ onSwitchToWatches }: AgentsAllViewProps) {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-16">
-          <div className="size-8 mx-auto mb-3 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
-          <p className="text-sm text-muted-foreground">読み込み中...</p>
+        <div className="flex items-center justify-center py-20">
+          <div className="size-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
         </div>
       ) : filteredAgents.length === 0 ? (
         <div className="text-center py-16">
@@ -253,18 +252,18 @@ export function AgentsAllView({ onSwitchToWatches }: AgentsAllViewProps) {
                         {agent.user.name}
                       </CardTitle>
                       {agent.matchScore !== null && (
-                        <Badge
-                          variant={
+                        <span
+                          className={cn(
+                            "text-[10px] font-medium px-2 py-0.5 rounded-md tabular-nums shrink-0",
                             agent.matchScore >= 0.7
-                              ? "default"
+                              ? "bg-emerald-500/10 text-emerald-600"
                               : agent.matchScore >= 0.4
-                                ? "secondary"
-                                : "outline"
-                          }
-                          className="tabular-nums text-xs shrink-0"
+                                ? "bg-amber-500/10 text-amber-600"
+                                : "bg-secondary text-secondary-foreground",
+                          )}
                         >
                           {Math.round(agent.matchScore * 100)}%
-                        </Badge>
+                        </span>
                       )}
                     </div>
                     <CardDescription className="text-xs">
@@ -280,21 +279,17 @@ export function AgentsAllView({ onSwitchToWatches }: AgentsAllViewProps) {
                 {agent.skills && agent.skills.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {agent.skills.slice(0, 5).map((skill) => (
-                      <Badge
+                      <span
                         key={skill}
-                        variant="secondary"
-                        className="text-xs font-normal"
+                        className="text-[10px] px-1.5 py-0.5 rounded-md bg-secondary text-secondary-foreground"
                       >
                         {skill}
-                      </Badge>
+                      </span>
                     ))}
                     {agent.skills.length > 5 && (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs tabular-nums font-normal"
-                      >
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-secondary text-secondary-foreground tabular-nums">
                         +{agent.skills.length - 5}
-                      </Badge>
+                      </span>
                     )}
                   </div>
                 )}
@@ -317,10 +312,7 @@ export function AgentsAllView({ onSwitchToWatches }: AgentsAllViewProps) {
                     const interest = getInterestForAgent(agent.id);
                     if (interest) {
                       return (
-                        <Badge
-                          variant="outline"
-                          className="py-1 text-xs text-primary border-primary/30"
-                        >
+                        <span className="inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md bg-primary/10 text-primary">
                           <svg
                             className="size-3 mr-1"
                             fill="currentColor"
@@ -329,7 +321,7 @@ export function AgentsAllView({ onSwitchToWatches }: AgentsAllViewProps) {
                             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                           </svg>
                           興味あり
-                        </Badge>
+                        </span>
                       );
                     }
                     return (

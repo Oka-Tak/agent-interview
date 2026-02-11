@@ -12,9 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -209,8 +207,8 @@ export function WatchesView() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <p className="text-muted-foreground text-pretty">
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-sm text-muted-foreground mt-1">
           条件に合う新規候補者を自動で通知します
         </p>
         <Dialog
@@ -307,108 +305,115 @@ export function WatchesView() {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Watches List */}
         <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-lg font-semibold text-balance tabular-nums">
+          <h2 className="text-lg font-semibold tabular-nums">
             登録済みウォッチ ({watches.length})
           </h2>
 
           {isLoading ? (
-            <p className="text-muted-foreground text-pretty">読み込み中...</p>
+            <div className="flex items-center justify-center py-20">
+              <div className="size-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+            </div>
           ) : watches.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground mb-4 text-pretty">
+            <div className="rounded-xl border bg-card overflow-hidden">
+              <div className="py-12 text-center">
+                <p className="text-sm text-muted-foreground mb-4">
                   まだウォッチがありません
                 </p>
                 <Button onClick={() => setIsDialogOpen(true)}>
                   最初のウォッチを作成
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
-            <div className="space-y-3">
-              {watches.map((watch) => (
-                <Card key={watch.id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-base flex items-center gap-2">
+            <div className="rounded-xl border bg-card overflow-hidden">
+              {watches.map((watch, index) => (
+                <div
+                  key={watch.id}
+                  className={cn("px-4 py-3", index > 0 && "border-t")}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium truncate">
                           {watch.name}
-                          <Badge
-                            variant={watch.isActive ? "default" : "secondary"}
-                          >
-                            {watch.isActive ? "アクティブ" : "停止中"}
-                          </Badge>
-                        </CardTitle>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            handleToggleActive(watch.id, watch.isActive)
-                          }
-                        >
-                          {watch.isActive ? "停止" : "有効化"}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive"
-                          onClick={() => {
-                            setDeleteTarget(watch);
-                            setDeleteError(null);
-                          }}
-                        >
-                          削除
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {watch.skills.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          <span className="text-xs text-muted-foreground mr-1">
-                            スキル:
-                          </span>
-                          {watch.skills.map((skill) => (
-                            <Badge
-                              key={skill}
-                              variant="outline"
-                              className="text-xs"
-                            >
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                      {watch.keywords.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          <span className="text-xs text-muted-foreground mr-1">
-                            キーワード:
-                          </span>
-                          {watch.keywords.map((keyword) => (
-                            <Badge
-                              key={keyword}
-                              variant="secondary"
-                              className="text-xs"
-                            >
-                              {keyword}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                      {watch.experienceLevel && (
-                        <p className="text-xs text-muted-foreground text-pretty">
-                          経験レベル: {experienceLabels[watch.experienceLevel]}
                         </p>
-                      )}
-                      <p className="text-xs text-muted-foreground tabular-nums">
-                        通知数: {watch._count.notifications}件
-                      </p>
+                        <span
+                          className={cn(
+                            "text-[10px] font-medium px-2 py-0.5 rounded-md shrink-0",
+                            watch.isActive
+                              ? "bg-emerald-500/10 text-emerald-600"
+                              : "bg-secondary text-secondary-foreground",
+                          )}
+                        >
+                          {watch.isActive ? "アクティブ" : "停止中"}
+                        </span>
+                      </div>
+                      <div className="mt-2 space-y-1.5">
+                        {watch.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            <span className="text-xs text-muted-foreground mr-1">
+                              スキル:
+                            </span>
+                            {watch.skills.map((skill) => (
+                              <span
+                                key={skill}
+                                className="text-[10px] px-1.5 py-0.5 rounded-md bg-secondary text-secondary-foreground"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {watch.keywords.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            <span className="text-xs text-muted-foreground mr-1">
+                              キーワード:
+                            </span>
+                            {watch.keywords.map((keyword) => (
+                              <span
+                                key={keyword}
+                                className="text-[10px] px-1.5 py-0.5 rounded-md bg-secondary text-secondary-foreground"
+                              >
+                                {keyword}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {watch.experienceLevel && (
+                          <p className="text-xs text-muted-foreground">
+                            経験レベル:{" "}
+                            {experienceLabels[watch.experienceLevel]}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground tabular-nums">
+                          通知数: {watch._count.notifications}件
+                        </p>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          handleToggleActive(watch.id, watch.isActive)
+                        }
+                      >
+                        {watch.isActive ? "停止" : "有効化"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => {
+                          setDeleteTarget(watch);
+                          setDeleteError(null);
+                        }}
+                      >
+                        削除
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -416,70 +421,67 @@ export function WatchesView() {
 
         {/* Notifications */}
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-balance">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
             通知
             {unreadCount > 0 && (
-              <Badge variant="destructive" className="ml-2 tabular-nums">
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-destructive text-destructive-foreground tabular-nums">
                 {unreadCount}
-              </Badge>
+              </span>
             )}
           </h2>
 
-          <Card>
-            <CardContent className="p-0">
-              {notifications.length === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground text-center text-pretty">
-                  通知はありません
-                </p>
-              ) : (
-                <div className="divide-y">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={cn(
-                        "p-4",
-                        !notification.isRead && "bg-muted/50",
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {notification.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1 text-pretty">
-                            {notification.message}
-                          </p>
-                          {notification.relatedAgent && (
-                            <Link
-                              href={`/recruiter/interview/${notification.relatedAgent.id}`}
-                              className="text-xs text-primary hover:underline mt-1 inline-block"
-                            >
-                              {notification.relatedAgent.user.name} を見る
-                            </Link>
-                          )}
-                        </div>
-                        {!notification.isRead && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs shrink-0"
-                            onClick={() => handleMarkAsRead(notification.id)}
-                          >
-                            既読
-                          </Button>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2 tabular-nums">
-                        {new Date(notification.createdAt).toLocaleDateString(
-                          "ja-JP",
-                        )}
+          <div className="rounded-xl border bg-card overflow-hidden">
+            {notifications.length === 0 ? (
+              <p className="p-4 text-sm text-muted-foreground text-center">
+                通知はありません
+              </p>
+            ) : (
+              notifications.map((notification, index) => (
+                <div
+                  key={notification.id}
+                  className={cn(
+                    "p-4",
+                    index > 0 && "border-t",
+                    !notification.isRead && "bg-muted/50",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {notification.title}
                       </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {notification.message}
+                      </p>
+                      {notification.relatedAgent && (
+                        <Link
+                          href={`/recruiter/interview/${notification.relatedAgent.id}`}
+                          className="text-xs text-primary hover:underline mt-1 inline-block"
+                        >
+                          {notification.relatedAgent.user.name} を見る
+                        </Link>
+                      )}
                     </div>
-                  ))}
+                    {!notification.isRead && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs shrink-0"
+                        onClick={() => handleMarkAsRead(notification.id)}
+                      >
+                        既読
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 tabular-nums">
+                    {new Date(notification.createdAt).toLocaleDateString(
+                      "ja-JP",
+                    )}
+                  </p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              ))
+            )}
+          </div>
         </div>
       </div>
 
