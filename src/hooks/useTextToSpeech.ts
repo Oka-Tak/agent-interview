@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type TTSState = "idle" | "speaking";
 
@@ -34,6 +34,11 @@ export function useTextToSpeech(
     }
     setState("idle");
   }, []);
+
+  // アンマウント時にリソースを解放
+  useEffect(() => {
+    return () => stop();
+  }, [stop]);
 
   const speak = useCallback(
     async (text: string) => {

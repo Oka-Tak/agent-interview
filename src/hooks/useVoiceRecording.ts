@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type RecordingState = "idle" | "recording" | "processing";
 
@@ -170,6 +170,11 @@ export function useVoiceRecording(
       }
     }
   }, [cleanup, monitorSilence, onSilenceDetected]);
+
+  // アンマウント時にリソースを解放
+  useEffect(() => {
+    return () => cleanup();
+  }, [cleanup]);
 
   const stopRecording = useCallback(async (): Promise<Blob | null> => {
     if (

@@ -103,11 +103,18 @@ export function useVoiceConversation({
     }
   }, [mode, handleRecordingComplete]);
 
+  const startRecordingWithErrorHandling = useCallback(() => {
+    recordingRef.current?.startRecording().catch(() => {
+      setError("録音の開始に失敗しました");
+      setVoiceState(isActiveRef.current ? "recording" : "inactive");
+    });
+  }, []);
+
   const tts = useTextToSpeech({
     onFinished: () => {
       setVoiceState(isActiveRef.current ? "recording" : "inactive");
       if (isActiveRef.current && mode === "continuous") {
-        recordingRef.current?.startRecording();
+        startRecordingWithErrorHandling();
       }
     },
   });
@@ -139,12 +146,19 @@ export function useVoiceConversation({
         tts.speak(lastMessage.content).catch(() => {
           setVoiceState(isActiveRef.current ? "recording" : "inactive");
           if (isActiveRef.current && mode === "continuous") {
-            recordingRef.current?.startRecording();
+            startRecordingWithErrorHandling();
           }
         });
       }
     }
-  }, [isLoading, messages, voiceState, tts, mode]);
+  }, [
+    isLoading,
+    messages,
+    voiceState,
+    tts.speak,
+    mode,
+    startRecordingWithErrorHandling,
+  ]);
 
   // Push-to-talk: ボタン押下→録音開始
   const onPressStart = useCallback(() => {
@@ -153,7 +167,12 @@ export function useVoiceConversation({
     setIsActive(true);
     isActiveRef.current = true;
     setVoiceState("recording");
-    recording.startRecording();
+    recording.startRecording().catch(() => {
+      setError("録音の開始に失敗しました");
+      setIsActive(false);
+      isActiveRef.current = false;
+      setVoiceState("inactive");
+    });
   }, [mode, recording]);
 
   // Push-to-talk: ボタン離す→録音停止→文字起こし→送信
@@ -180,7 +199,12 @@ export function useVoiceConversation({
       isActiveRef.current = true;
       setIsActive(true);
       setVoiceState("recording");
-      recording.startRecording();
+      recording.startRecording().catch(() => {
+        setError("録音の開始に失敗しました");
+        setIsActive(false);
+        isActiveRef.current = false;
+        setVoiceState("inactive");
+      });
     }
   }, [mode, isActive, tts, recording]);
 
