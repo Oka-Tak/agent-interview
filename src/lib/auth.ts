@@ -69,6 +69,8 @@ export const authOptions: NextAuthOptions = {
               // アバター変更時にURLが変わるようavatarPathの末尾をキャッシュバスターに使用
               const v = account.user.avatarPath.slice(-8);
               session.user.image = `/api/applicant/avatar?v=${v}`;
+            } else {
+              session.user.image = null;
             }
           }
           if (account.recruiter) {
