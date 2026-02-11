@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import { AgentBusinessCard } from "@/components/agent";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface DashboardData {
   agent: {
@@ -104,23 +105,20 @@ export default function ApplicantDashboard() {
     fetchData();
   }, [fetchData]);
 
-  const allSkills = [
-    ...new Set(data.fragments.flatMap((f) => f.skills)),
-  ];
-  const coveragePercent = data.coverage?.percentage ?? 0;
+  const allSkills = [...new Set(data.fragments.flatMap((f) => f.skills))];
   const userName = data.settings?.name ?? session?.user?.name ?? "";
   const avatarUrl = data.settings?.avatarUrl ?? null;
   const agentStatus = data.agent?.status as "PUBLIC" | "PRIVATE" | undefined;
 
-  // ステップの状態を計算
   const steps = [
     {
       label: "AIと対話",
-      desc: "経験やスキルを伝える",
+      desc: "経験やスキルをAIに伝えて、記憶のかけらを作成",
       href: "/chat",
       done: data.fragments.length > 0,
-      count: data.fragments.length,
-      unit: "記憶のかけら",
+      stat:
+        data.fragments.length > 0 ? `${data.fragments.length} かけら` : null,
+      cta: "対話を始める",
       icon: (
         <path
           strokeLinecap="round"
@@ -132,11 +130,12 @@ export default function ApplicantDashboard() {
     },
     {
       label: "ドキュメント",
-      desc: "履歴書やポートフォリオ",
+      desc: "履歴書やポートフォリオをアップロード",
       href: "/documents",
       done: data.documents.total > 0,
-      count: data.documents.total,
-      unit: "files",
+      stat:
+        data.documents.total > 0 ? `${data.documents.total} ファイル` : null,
+      cta: "アップロード",
       icon: (
         <path
           strokeLinecap="round"
@@ -148,11 +147,11 @@ export default function ApplicantDashboard() {
     },
     {
       label: "エージェント公開",
-      desc: "採用担当者に公開する",
+      desc: "採用担当者があなたのエージェントと対話できるようにする",
       href: "/agent",
       done: agentStatus === "PUBLIC",
-      count: null,
-      unit: null,
+      stat: agentStatus === "PUBLIC" ? "公開中" : null,
+      cta: "公開する",
       icon: (
         <path
           strokeLinecap="round"
@@ -163,12 +162,17 @@ export default function ApplicantDashboard() {
       ),
     },
     {
-      label: "受信箱",
-      desc: "企業からの関心",
+      label: "受信箱を確認",
+      desc: "企業からの興味表明やメッセージを確認",
       href: "/inbox",
       done: data.interests.total > 0,
-      count: data.interests.total,
-      unit: "件",
+      stat:
+        data.interests.new > 0
+          ? `${data.interests.new} 件の新着`
+          : data.interests.total > 0
+            ? `${data.interests.total} 件`
+            : null,
+      cta: "確認する",
       icon: (
         <path
           strokeLinecap="round"
@@ -179,6 +183,8 @@ export default function ApplicantDashboard() {
       ),
     },
   ];
+
+  const doneCount = steps.filter((s) => s.done).length;
 
   if (loading) {
     return (
@@ -191,7 +197,7 @@ export default function ApplicantDashboard() {
   return (
     <div className="space-y-8">
       {/* 挨拶 */}
-      <div>
+      <div className="text-center">
         <h1 className="text-2xl font-bold tracking-tight">
           こんにちは、{userName}さん
         </h1>
@@ -200,17 +206,21 @@ export default function ApplicantDashboard() {
         </p>
       </div>
 
-      {/* ヒーロー: 名刺 + 統計 */}
-      <div className="grid lg:grid-cols-[1fr_1fr] gap-6 items-start">
+      {/* 名刺 + セットアップ */}
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
         {/* 名刺 + 統計 */}
-        <div className="p-6 rounded-xl border bg-card space-y-5">
+        <div className="p-5 rounded-xl border bg-card space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-[10px] tracking-widest text-muted-foreground uppercase">
               あなたの名刺
             </p>
             <Link href="/agent">
-              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
-                エージェント設定 →
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground h-6 px-2"
+              >
+                設定 →
               </Button>
             </Link>
           </div>
@@ -219,155 +229,144 @@ export default function ApplicantDashboard() {
               name={userName || "Your Name"}
               avatarUrl={avatarUrl}
               skills={allSkills}
-              status={agentStatus === "PUBLIC" || agentStatus === "PRIVATE" ? agentStatus : undefined}
+              status={
+                agentStatus === "PUBLIC" || agentStatus === "PRIVATE"
+                  ? agentStatus
+                  : undefined
+              }
               fragmentCount={data.fragments.length}
-              className="max-w-[340px]"
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="text-center p-2.5 rounded-lg bg-secondary/50">
-              <p className="text-lg font-bold tabular-nums text-foreground">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="text-center p-2 rounded-lg bg-secondary/50">
+              <p className="text-base font-bold tabular-nums text-foreground">
                 {data.fragments.length}
               </p>
-              <p className="text-[10px] text-muted-foreground">記憶のかけら</p>
+              <p className="text-[10px] text-muted-foreground">かけら</p>
             </div>
-            <div className="text-center p-2.5 rounded-lg bg-secondary/50">
-              <p className="text-lg font-bold tabular-nums text-foreground">
+            <div className="text-center p-2 rounded-lg bg-secondary/50">
+              <p className="text-base font-bold tabular-nums text-foreground">
                 {allSkills.length}
               </p>
               <p className="text-[10px] text-muted-foreground">スキル</p>
             </div>
-            <div className="text-center p-2.5 rounded-lg bg-secondary/50">
-              <p className="text-lg font-bold tabular-nums text-foreground">
+            <div className="text-center p-2 rounded-lg bg-secondary/50">
+              <p className="text-base font-bold tabular-nums text-foreground">
                 {data.documents.total}
               </p>
-              <p className="text-[10px] text-muted-foreground">ドキュメント</p>
+              <p className="text-[10px] text-muted-foreground">文書</p>
             </div>
           </div>
         </div>
 
-        {/* プロフィール完成度 */}
+        {/* セットアップ進捗 */}
         <div className="p-6 rounded-xl border bg-card space-y-5">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold tracking-tight">
-                プロフィール完成度
+                セットアップ
               </p>
-              <span className="text-2xl font-bold tracking-tight tabular-nums text-foreground">
-                {coveragePercent}
-                <span className="text-sm font-medium text-muted-foreground">
-                  %
+              <span className="text-sm font-bold tabular-nums text-foreground">
+                {doneCount}
+                <span className="text-muted-foreground font-medium">
+                  /{steps.length}
                 </span>
               </span>
             </div>
-            {/* プログレスバー */}
             <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
               <div
                 className="h-full bg-primary rounded-full transition-all duration-500"
-                style={{ width: `${coveragePercent}%` }}
+                style={{ width: `${(doneCount / steps.length) * 100}%` }}
               />
             </div>
           </div>
 
-          {/* カテゴリ別進捗 */}
-          {data.coverage?.categories && data.coverage.categories.length > 0 && (
-            <div className="space-y-2">
-              {data.coverage.categories.map((cat) => (
-                <div key={cat.label} className="flex items-center gap-3">
-                  <div className="size-5 rounded-full flex items-center justify-center shrink-0">
-                    {cat.fulfilled ? (
-                      <svg
-                        className="size-4 text-primary"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    ) : (
-                      <div className="size-3 rounded-full border-2 border-border" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">{cat.label}</p>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-                    {cat.current}/{cat.required}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* チェックポイントタイムライン */}
+          <div className="relative">
+            {steps.map((step, index) => {
+              const isLast = index === steps.length - 1;
 
-          {/* 完成度がない場合のフォールバック */}
-          {(!data.coverage?.categories || data.coverage.categories.length === 0) && (
-            <Link href="/chat">
-              <Button className="w-full" size="sm">
-                AIと対話してプロフィールを作る
-              </Button>
-            </Link>
-          )}
-        </div>
-      </div>
+              return (
+                <div key={step.href} className="relative flex gap-4">
+                  {/* 縦ライン + チェックポイント丸 */}
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={cn(
+                        "size-7 rounded-full flex items-center justify-center shrink-0 z-10",
+                        step.done
+                          ? "bg-primary/10"
+                          : "border-2 border-border bg-card",
+                      )}
+                    >
+                      {step.done ? (
+                        <svg
+                          className="size-3.5 text-primary"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.5}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      ) : (
+                        <svg
+                          className="size-3.5 text-muted-foreground"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          {step.icon}
+                        </svg>
+                      )}
+                    </div>
+                    {!isLast && <div className="w-px flex-1 bg-border" />}
+                  </div>
 
-      {/* ステップカード */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {steps.map((step) => (
-          <Link
-            key={step.href}
-            href={step.href}
-            className="group p-4 rounded-xl border bg-card hover:border-primary/30 transition-colors"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <span className="size-8 rounded-lg bg-secondary flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                <svg
-                  className="size-4 text-muted-foreground group-hover:text-primary transition-colors"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  {step.icon}
-                </svg>
-              </span>
-              {step.done ? (
-                <span className="size-5 rounded-full bg-primary/10 flex items-center justify-center">
-                  <svg
-                    className="size-3 text-primary"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                  {/* コンテンツ */}
+                  <div
+                    className={cn("flex-1 min-w-0", isLast ? "pb-0" : "pb-5")}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2.5}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                </span>
-              ) : (
-                <span className="size-5 rounded-full border-2 border-border" />
-              )}
-            </div>
-            <p className="text-sm font-semibold tracking-tight">{step.label}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{step.desc}</p>
-            {step.count !== null && step.count > 0 && (
-              <p className="text-xs text-primary font-medium mt-2 tabular-nums">
-                {step.count} {step.unit}
-              </p>
-            )}
-            {step.href === "/inbox" && data.interests.new > 0 && (
-              <p className="text-xs text-primary font-medium mt-2 tabular-nums">
-                {data.interests.new} 件の新着
-              </p>
-            )}
-          </Link>
-        ))}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p
+                          className={cn(
+                            "text-sm font-medium",
+                            step.done ? "text-foreground" : "text-foreground",
+                          )}
+                        >
+                          {step.label}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {step.desc}
+                        </p>
+                      </div>
+                      <div className="shrink-0 flex items-center gap-2">
+                        {step.stat && (
+                          <span className="text-xs font-medium text-primary tabular-nums">
+                            {step.stat}
+                          </span>
+                        )}
+                        <Link href={step.href}>
+                          <Button
+                            variant={step.done ? "outline" : "default"}
+                            size="sm"
+                            className="h-7 text-xs px-3"
+                          >
+                            {step.done ? step.label : step.cta}
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

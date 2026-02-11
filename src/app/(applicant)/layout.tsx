@@ -89,7 +89,7 @@ export default function ApplicantLayout({
   return (
     <div className="min-h-dvh bg-background">
       <header className="bg-card border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-8">
               <Link
@@ -226,7 +226,9 @@ export default function ApplicantLayout({
           </div>
         </div>
       </header>
-      <main className="container mx-auto px-4 py-8">{children}</main>
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {children}
+      </main>
     </div>
   );
 }
