@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { withUserAuth } from "@/lib/api-utils";
-import { detectContentType, sanitizeFileName } from "@/lib/avatar-utils";
+import {
+  detectContentType,
+  sanitizeFileName,
+  stripImageMetadata,
+} from "@/lib/avatar-utils";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import {
   deleteFile,
@@ -38,15 +42,19 @@ export const POST = withUserAuth(async (req, session) => {
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
+  // マジックバイトで実際の画像形式を判定（file.typeはクライアント申告値のため信頼しない）
   const detectedType = detectContentType(buffer);
   if (!detectedType) {
     throw new ValidationError("ファイルの内容が画像形式と一致しません");
   }
 
+  // EXIFメタデータ（GPS座標等）を除去
+  const processedBuffer = await stripImageMetadata(buffer, detectedType);
+
   const sanitizedFileName = sanitizeFileName(file.name);
   const avatarPath = await uploadFile(
     `avatars/${session.user.userId}/${sanitizedFileName}`,
-    buffer,
+    processedBuffer,
     detectedType,
   );
 

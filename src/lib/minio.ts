@@ -54,7 +54,17 @@ export async function uploadFile(
 }
 
 const URL_CACHE_TTL = 30 * 60 * 1000; // 30分
+const URL_CACHE_MAX_SIZE = 1000;
 const urlCache = new Map<string, { url: string; expiresAt: number }>();
+
+function evictExpiredUrlCache(): void {
+  const now = Date.now();
+  for (const [key, entry] of urlCache) {
+    if (entry.expiresAt <= now) {
+      urlCache.delete(key);
+    }
+  }
+}
 
 export async function getFileUrl(objectName: string): Promise<string> {
   const cached = urlCache.get(objectName);
@@ -66,6 +76,14 @@ export async function getFileUrl(objectName: string): Promise<string> {
     objectName,
     60 * 60,
   );
+  if (urlCache.size >= URL_CACHE_MAX_SIZE) {
+    evictExpiredUrlCache();
+    // 期限切れエントリ削除後もまだ上限超なら最古のエントリを削除
+    if (urlCache.size >= URL_CACHE_MAX_SIZE) {
+      const oldestKey = urlCache.keys().next().value;
+      if (oldestKey) urlCache.delete(oldestKey);
+    }
+  }
   urlCache.set(objectName, { url, expiresAt: Date.now() + URL_CACHE_TTL });
   return url;
 }

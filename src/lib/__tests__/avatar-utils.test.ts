@@ -1,54 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   detectContentType,
   sanitizeFileName,
-  validateMagicBytes,
+  stripImageMetadata,
 } from "../avatar-utils";
 
-describe("validateMagicBytes", () => {
-  it("JPEGファイルを正しく検証する", () => {
-    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00]);
-    expect(validateMagicBytes(jpeg)).toBe(true);
-  });
+const mockToBuffer = vi.fn().mockResolvedValue(Buffer.from("processed"));
+const mockJpeg = vi.fn().mockReturnValue({ toBuffer: mockToBuffer });
+const mockPng = vi.fn().mockReturnValue({ toBuffer: mockToBuffer });
+const mockWebp = vi.fn().mockReturnValue({ toBuffer: mockToBuffer });
+const mockRotate = vi
+  .fn()
+  .mockReturnValue({ jpeg: mockJpeg, png: mockPng, webp: mockWebp });
+const mockSharp = vi.fn().mockReturnValue({ rotate: mockRotate });
 
-  it("PNGファイルを正しく検証する", () => {
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d]);
-    expect(validateMagicBytes(png)).toBe(true);
-  });
-
-  it("GIFファイルを正しく検証する", () => {
-    const gif = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x39]);
-    expect(validateMagicBytes(gif)).toBe(true);
-  });
-
-  it("WebPファイルを正しく検証する", () => {
-    // RIFF....WEBP
-    const webp = Buffer.from([
-      0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
-    ]);
-    expect(validateMagicBytes(webp)).toBe(true);
-  });
-
-  it("RIFFヘッダーのみでWEBPシグネチャがない場合はfalseを返す", () => {
-    const riffOnly = Buffer.from([
-      0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x41, 0x56, 0x49, 0x20,
-    ]);
-    expect(validateMagicBytes(riffOnly)).toBe(false);
-  });
-
-  it("不正なバイナリを拒否する", () => {
-    const invalid = Buffer.from([0x00, 0x01, 0x02, 0x03]);
-    expect(validateMagicBytes(invalid)).toBe(false);
-  });
-
-  it("空のバッファを拒否する", () => {
-    expect(validateMagicBytes(Buffer.alloc(0))).toBe(false);
-  });
-
-  it("短すぎるバッファを拒否する", () => {
-    expect(validateMagicBytes(Buffer.from([0xff, 0xd8]))).toBe(false);
-  });
-});
+vi.mock("sharp", () => ({ default: mockSharp }));
 
 describe("detectContentType", () => {
   it("JPEGのContent-Typeを返す", () => {
@@ -73,6 +39,13 @@ describe("detectContentType", () => {
     expect(detectContentType(webp)).toBe("image/webp");
   });
 
+  it("RIFFヘッダーのみでWEBPシグネチャがない場合はnullを返す", () => {
+    const riffOnly = Buffer.from([
+      0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x41, 0x56, 0x49, 0x20,
+    ]);
+    expect(detectContentType(riffOnly)).toBeNull();
+  });
+
   it("不明な形式にはnullを返す", () => {
     const unknown = Buffer.from([0x00, 0x01, 0x02, 0x03]);
     expect(detectContentType(unknown)).toBeNull();
@@ -80,6 +53,10 @@ describe("detectContentType", () => {
 
   it("空のバッファにはnullを返す", () => {
     expect(detectContentType(Buffer.alloc(0))).toBeNull();
+  });
+
+  it("短すぎるバッファにはnullを返す", () => {
+    expect(detectContentType(Buffer.from([0xff, 0xd8]))).toBeNull();
   });
 });
 
@@ -107,5 +84,56 @@ describe("sanitizeFileName", () => {
   it("通常のファイル名はそのまま返す", () => {
     expect(sanitizeFileName("photo.jpg")).toBe("photo.jpg");
     expect(sanitizeFileName("my-avatar_2024.png")).toBe("my-avatar_2024.png");
+  });
+
+  it("空文字列になる場合はフォールバックする", () => {
+    expect(sanitizeFileName("\0\0\0")).toBe("avatar");
+    expect(sanitizeFileName("")).toBe("avatar");
+  });
+});
+
+describe("stripImageMetadata", () => {
+  it("GIFはそのまま返す", async () => {
+    const gif = Buffer.from("gif-data");
+    const result = await stripImageMetadata(gif, "image/gif");
+    expect(result).toBe(gif);
+  });
+
+  it("JPEGのメタデータを除去する", async () => {
+    const input = Buffer.from("jpeg-data");
+    const result = await stripImageMetadata(input, "image/jpeg");
+
+    expect(mockSharp).toHaveBeenCalledWith(input);
+    expect(mockRotate).toHaveBeenCalled();
+    expect(mockJpeg).toHaveBeenCalled();
+    expect(result).toEqual(Buffer.from("processed"));
+  });
+
+  it("PNGのメタデータを除去する", async () => {
+    await stripImageMetadata(Buffer.from("png-data"), "image/png");
+    expect(mockPng).toHaveBeenCalled();
+  });
+
+  it("WebPのメタデータを除去する", async () => {
+    await stripImageMetadata(Buffer.from("webp-data"), "image/webp");
+    expect(mockWebp).toHaveBeenCalled();
+  });
+
+  it("不明なContent-Typeはそのまま返す", async () => {
+    const input = Buffer.from("unknown");
+    const result = await stripImageMetadata(input, "image/bmp");
+    expect(result).toBe(input);
+  });
+
+  it("sharpが失敗した場合はValidationErrorをスローする", async () => {
+    mockRotate.mockReturnValueOnce({
+      jpeg: vi.fn().mockReturnValue({
+        toBuffer: vi.fn().mockRejectedValue(new Error("corrupt")),
+      }),
+    });
+
+    await expect(
+      stripImageMetadata(Buffer.from("bad"), "image/jpeg"),
+    ).rejects.toThrow("画像の処理に失敗しました");
   });
 });

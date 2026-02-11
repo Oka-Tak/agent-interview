@@ -1,32 +1,4 @@
-// マジックバイトによるファイル形式検証
-const MAGIC_BYTES: { offset: number; bytes: number[] }[] = [
-  { offset: 0, bytes: [0xff, 0xd8, 0xff] }, // JPEG
-  { offset: 0, bytes: [0x89, 0x50, 0x4e, 0x47] }, // PNG
-  { offset: 0, bytes: [0x47, 0x49, 0x46, 0x38] }, // GIF
-];
-
-export function validateMagicBytes(buffer: Buffer): boolean {
-  if (buffer.length < 4) return false;
-
-  // WebP: RIFFヘッダー(0-3) + "WEBP"シグネチャ(8-11)
-  const isWebP =
-    buffer.length >= 12 &&
-    buffer[0] === 0x52 &&
-    buffer[1] === 0x49 &&
-    buffer[2] === 0x46 &&
-    buffer[3] === 0x46 &&
-    buffer[8] === 0x57 &&
-    buffer[9] === 0x45 &&
-    buffer[10] === 0x42 &&
-    buffer[11] === 0x50;
-
-  return (
-    isWebP ||
-    MAGIC_BYTES.some(({ offset, bytes }) =>
-      bytes.every((byte, i) => buffer[offset + i] === byte),
-    )
-  );
-}
+import { ValidationError } from "@/lib/errors";
 
 export function detectContentType(buffer: Buffer): string | null {
   if (buffer.length < 4) return null;
@@ -67,9 +39,35 @@ export function detectContentType(buffer: Buffer): string | null {
 }
 
 export function sanitizeFileName(name: string): string {
-  return name
+  const sanitized = name
     .replace(/\0/g, "")
     .replace(/[/\\?%*:|"<>]/g, "-")
     .replace(/\.{2,}/g, ".")
     .slice(0, 255);
+  return sanitized || "avatar";
+}
+
+export async function stripImageMetadata(
+  buffer: Buffer,
+  contentType: string,
+): Promise<Buffer> {
+  const sharp = (await import("sharp")).default;
+  // GIFはEXIFメタデータを持たないため処理不要
+  if (contentType === "image/gif") return buffer;
+  try {
+    // rotate() で EXIF の回転情報を適用してからメタデータを除去
+    const image = sharp(buffer).rotate();
+    switch (contentType) {
+      case "image/jpeg":
+        return await image.jpeg().toBuffer();
+      case "image/png":
+        return await image.png().toBuffer();
+      case "image/webp":
+        return await image.webp().toBuffer();
+      default:
+        return buffer;
+    }
+  } catch {
+    throw new ValidationError("画像の処理に失敗しました");
+  }
 }
