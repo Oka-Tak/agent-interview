@@ -6,6 +6,7 @@ import {
 } from "../avatar-utils";
 
 const mockToBuffer = vi.fn().mockResolvedValue(Buffer.from("processed"));
+const mockGif = vi.fn().mockReturnValue({ toBuffer: mockToBuffer });
 const mockJpeg = vi.fn().mockReturnValue({ toBuffer: mockToBuffer });
 const mockPng = vi.fn().mockReturnValue({ toBuffer: mockToBuffer });
 const mockWebp = vi.fn().mockReturnValue({ toBuffer: mockToBuffer });
@@ -13,7 +14,7 @@ const mockResize = vi
   .fn()
   .mockReturnValue({ jpeg: mockJpeg, png: mockPng, webp: mockWebp });
 const mockRotate = vi.fn().mockReturnValue({ resize: mockResize });
-const mockSharp = vi.fn().mockReturnValue({ rotate: mockRotate });
+const mockSharp = vi.fn().mockReturnValue({ rotate: mockRotate, gif: mockGif });
 
 vi.mock("sharp", () => ({ default: mockSharp }));
 
@@ -94,10 +95,15 @@ describe("sanitizeFileName", () => {
 });
 
 describe("processImage", () => {
-  it("GIFはそのまま返す", async () => {
+  it("GIFはリサイズせずメタデータ除去のみ行う", async () => {
     const gif = Buffer.from("gif-data");
     const result = await processImage(gif, "image/gif");
-    expect(result).toBe(gif);
+
+    expect(mockSharp).toHaveBeenCalledWith(gif, { animated: true });
+    expect(mockGif).toHaveBeenCalled();
+    expect(mockRotate).not.toHaveBeenCalled();
+    expect(mockResize).not.toHaveBeenCalled();
+    expect(result).toEqual(Buffer.from("processed"));
   });
 
   it("JPEGのメタデータを除去しリサイズする", async () => {

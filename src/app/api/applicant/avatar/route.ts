@@ -25,9 +25,7 @@ export const GET = withUserAuth(async (_req, session) => {
   }
 
   const url = await getFileUrl(user.avatarPath);
-  return NextResponse.redirect(url, {
-    headers: { "Cache-Control": "private, max-age=300" },
-  });
+  return NextResponse.redirect(url);
 });
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB

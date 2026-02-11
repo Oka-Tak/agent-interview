@@ -51,10 +51,12 @@ export async function processImage(
   buffer: Buffer,
   contentType: string,
 ): Promise<Buffer> {
-  // GIFはアニメーション対応が複雑なため処理をスキップ
-  if (contentType === "image/gif") return buffer;
   const sharp = (await import("sharp")).default;
   try {
+    // GIFはアニメーション保持のためリサイズをスキップし、メタデータ除去のみ行う
+    if (contentType === "image/gif") {
+      return await sharp(buffer, { animated: true }).gif().toBuffer();
+    }
     // rotate() で EXIF の回転情報を適用し、512x512にリサイズしてメタデータを除去
     const image = sharp(buffer)
       .rotate()
