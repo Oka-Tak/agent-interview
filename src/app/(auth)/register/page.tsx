@@ -143,7 +143,7 @@ function RegisterForm() {
   );
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-gray-50 p-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">アカウント登録</CardTitle>
@@ -203,7 +203,7 @@ function RegisterForm() {
                 <p className="text-xs text-muted-foreground text-center text-pretty">
                   候補者のAIエージェントと対話し、 効率的な採用活動を行えます
                 </p>
-                <p className="text-xs text-muted-foreground text-center text-pretty bg-gray-100 px-3 py-2 rounded-md">
+                <p className="text-xs text-muted-foreground text-center text-pretty bg-secondary px-3 py-2 rounded-md">
                   既存の会社に参加する場合は、管理者からの招待リンクをご利用ください
                 </p>
               </form>
