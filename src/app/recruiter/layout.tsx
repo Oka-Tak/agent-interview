@@ -11,6 +11,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -19,10 +20,6 @@ const navigation = [
   { name: "求人管理", href: "/recruiter/jobs" },
   { name: "パイプライン", href: "/recruiter/pipeline" },
   { name: "エージェント一覧", href: "/recruiter/agents" },
-  { name: "興味リスト", href: "/recruiter/interests" },
-  { name: "ウォッチリスト", href: "/recruiter/watches" },
-  { name: "プラン・ポイント", href: "/recruiter/billing" },
-  { name: "メンバー管理", href: "/recruiter/members" },
 ];
 
 interface Subscription {
@@ -153,6 +150,14 @@ export default function RecruiterLayout({
                   <DropdownMenuItem className="text-muted-foreground">
                     {session.user?.email}
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/recruiter/billing">プラン・ポイント</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/recruiter/members">メンバー管理</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => signOut({ callbackUrl: "/" })}
                   >
