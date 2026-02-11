@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -67,8 +66,8 @@ export default function RecruiterLayout({
 
   if (status === "loading") {
     return (
-      <div className="min-h-dvh flex items-center justify-center">
-        <p>Loading...</p>
+      <div className="flex items-center justify-center py-20">
+        <div className="size-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
@@ -103,10 +102,7 @@ export default function RecruiterLayout({
             </div>
             <div className="flex items-center gap-4">
               {subscription && (
-                <Badge
-                  variant="outline"
-                  className="hidden md:flex gap-1.5 py-1"
-                >
+                <span className="hidden md:inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg bg-secondary">
                   <svg
                     className="size-4"
                     fill="none"
@@ -124,7 +120,7 @@ export default function RecruiterLayout({
                     {subscription.pointBalance}
                   </span>
                   <span className="text-muted-foreground">pt</span>
-                </Badge>
+                </span>
               )}
               <span className="text-sm text-muted-foreground hidden md:block">
                 {session.user?.companyName}
