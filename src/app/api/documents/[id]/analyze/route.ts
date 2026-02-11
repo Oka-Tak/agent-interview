@@ -42,6 +42,8 @@ export const POST = withUserAuth<RouteContext>(
           Payload: JSON.stringify({
             documentId: id,
             userId: session.user.userId,
+            filePath: document.filePath,
+            fileName: document.fileName,
           }),
         }),
       );

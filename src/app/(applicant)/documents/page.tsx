@@ -57,7 +57,7 @@ export default function DocumentsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const eventSourcesRef = useRef<Map<string, EventSource>>(new Map());
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -77,28 +77,13 @@ export default function DocumentsPage() {
     fetchDocuments();
   }, [fetchDocuments]);
 
-  // ANALYZING 状態のドキュメントがある間、3秒ごとにポーリング
   useEffect(() => {
-    const hasAnalyzing = documents.some(
-      (doc) => doc.analysisStatus === "ANALYZING",
-    );
-
-    if (hasAnalyzing && !pollingRef.current) {
-      pollingRef.current = setInterval(() => {
-        fetchDocuments();
-      }, 3000);
-    } else if (!hasAnalyzing && pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
-
     return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
+      for (const es of eventSourcesRef.current.values()) {
+        es.close();
       }
     };
-  }, [documents, fetchDocuments]);
+  }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -167,9 +152,54 @@ export default function DocumentsPage() {
 
       // サーバーから最新状態を取得（ANALYZING に遷移済み）
       await fetchDocuments();
+
+      // SSE 接続
+      const es = new EventSource(`/api/documents/${id}/analyze/stream`);
+      eventSourcesRef.current.set(id, es);
+
+      es.addEventListener("completed", (event) => {
+        const data = JSON.parse(event.data);
+        setDocuments((prev) =>
+          prev.map((doc) =>
+            doc.id === id
+              ? {
+                  ...doc,
+                  analysisStatus: "COMPLETED" as AnalysisStatus,
+                  summary: data.summary,
+                  analyzedAt: data.analyzedAt,
+                  analysisError: null,
+                }
+              : doc,
+          ),
+        );
+        es.close();
+        eventSourcesRef.current.delete(id);
+      });
+
+      es.addEventListener("failed", (event) => {
+        const data = JSON.parse(event.data);
+        setDocuments((prev) =>
+          prev.map((doc) =>
+            doc.id === id
+              ? {
+                  ...doc,
+                  analysisStatus: "FAILED" as AnalysisStatus,
+                  analysisError: data.error,
+                }
+              : doc,
+          ),
+        );
+        es.close();
+        eventSourcesRef.current.delete(id);
+      });
+
+      es.onerror = () => {
+        es.close();
+        eventSourcesRef.current.delete(id);
+        fetchDocuments();
+      };
     } catch (error) {
       console.error("Analyze error:", error);
-      // エラー時もサーバー側の最新状態を反映
       await fetchDocuments();
     }
   };

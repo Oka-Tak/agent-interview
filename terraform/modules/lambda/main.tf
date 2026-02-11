@@ -92,11 +92,6 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_vpc" {
-  role       = aws_iam_role.lambda_execution.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
-}
-
 data "aws_iam_policy_document" "lambda_s3" {
   statement {
     sid = "S3ReadAccess"
@@ -118,35 +113,6 @@ resource "aws_iam_role_policy" "lambda_s3" {
 }
 
 ################################################################################
-# Security Group
-################################################################################
-
-resource "aws_security_group" "lambda" {
-  name        = "${local.name_prefix}-lambda-sg"
-  description = "Security group for Lambda document analysis"
-  vpc_id      = var.vpc_id
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-lambda-sg"
-  })
-}
-
-resource "aws_vpc_security_group_egress_rule" "lambda_all" {
-  security_group_id = aws_security_group.lambda.id
-  cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "-1"
-}
-
-# RDS SG に Lambda からの PostgreSQL アクセスを許可
-resource "aws_vpc_security_group_ingress_rule" "rds_from_lambda" {
-  security_group_id            = var.rds_security_group_id
-  referenced_security_group_id = aws_security_group.lambda.id
-  from_port                    = 5432
-  to_port                      = 5432
-  ip_protocol                  = "tcp"
-}
-
-################################################################################
 # Lambda Function
 ################################################################################
 
@@ -158,19 +124,15 @@ resource "aws_lambda_function" "document_analysis" {
   timeout       = 900
   memory_size   = 2048
 
-  vpc_config {
-    subnet_ids         = var.private_subnet_ids
-    security_group_ids = [aws_security_group.lambda.id]
-  }
-
   environment {
     variables = {
-      DATABASE_URL     = var.database_url
-      STORAGE_PROVIDER = "s3"
-      MINIO_ACCESS_KEY = var.minio_access_key
-      MINIO_SECRET_KEY = var.minio_secret_key
+      STORAGE_PROVIDER  = "s3"
+      MINIO_ACCESS_KEY  = var.minio_access_key
+      MINIO_SECRET_KEY  = var.minio_secret_key
       MINIO_BUCKET_NAME = var.minio_bucket_name
-      OPENAI_API_KEY   = var.openai_api_key
+      OPENAI_API_KEY    = var.openai_api_key
+      CALLBACK_URL      = var.callback_url
+      CALLBACK_SECRET   = var.callback_secret
     }
   }
 

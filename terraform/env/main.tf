@@ -83,17 +83,15 @@ module "iam" {
 module "lambda" {
   source = "../modules/lambda"
 
-  project_name          = var.project_name
-  environment           = var.environment
-  vpc_id                = data.terraform_remote_state.shared.outputs.vpc_id
-  private_subnet_ids    = data.terraform_remote_state.shared.outputs.private_subnet_ids
-  rds_security_group_id = module.security_groups.rds_security_group_id
-  s3_bucket_arn         = module.s3.bucket_arn
-  database_url          = module.rds.database_url
-  minio_access_key      = module.iam.s3_access_key_id
-  minio_secret_key      = module.iam.s3_secret_access_key
-  minio_bucket_name     = module.s3.bucket_name
-  openai_api_key        = var.openai_api_key
+  project_name    = var.project_name
+  environment     = var.environment
+  s3_bucket_arn   = module.s3.bucket_arn
+  callback_url    = "${var.nextauth_url}/api/internal/analysis-callback"
+  callback_secret = random_password.analysis_callback_secret.result
+  minio_access_key  = module.iam.s3_access_key_id
+  minio_secret_key  = module.iam.s3_secret_access_key
+  minio_bucket_name = module.s3.bucket_name
+  openai_api_key    = var.openai_api_key
 }
 
 # ECS タスクロールに Lambda invoke 権限を追加（循環依存回避のためモジュール外で定義）
@@ -115,6 +113,11 @@ resource "aws_iam_role_policy" "ecs_task_lambda_invoke" {
 }
 
 # --- SSM Parameter Store ---
+resource "random_password" "analysis_callback_secret" {
+  length  = 64
+  special = false
+}
+
 resource "random_password" "nextauth_secret" {
   length  = 64
   special = true
@@ -134,6 +137,7 @@ module "ssm" {
   openai_api_key               = var.openai_api_key
   stripe_secret_key            = var.stripe_secret_key
   document_analysis_lambda_arn = module.lambda.lambda_function_arn
+  analysis_callback_secret     = random_password.analysis_callback_secret.result
 }
 
 # --- ECS ---
@@ -145,7 +149,7 @@ module "ecs" {
   ecr_repository_url         = data.terraform_remote_state.shared.outputs.ecr_repository_url
   ecs_task_execution_role_arn = module.iam.ecs_task_execution_role_arn
   ecs_task_role_arn           = module.iam.ecs_task_role_arn
-  private_subnet_ids         = data.terraform_remote_state.shared.outputs.private_subnet_ids
+  public_subnet_ids          = data.terraform_remote_state.shared.outputs.public_subnet_ids
   ecs_security_group_id      = module.security_groups.ecs_security_group_id
   target_group_arn           = module.alb.target_group_arn
 }

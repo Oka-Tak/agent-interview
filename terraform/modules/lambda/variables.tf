@@ -8,28 +8,18 @@ variable "environment" {
   type        = string
 }
 
-variable "vpc_id" {
-  description = "ID of the VPC"
-  type        = string
-}
-
-variable "private_subnet_ids" {
-  description = "IDs of the private subnets for Lambda"
-  type        = list(string)
-}
-
-variable "rds_security_group_id" {
-  description = "ID of the RDS security group (to add Lambda ingress)"
-  type        = string
-}
-
 variable "s3_bucket_arn" {
   description = "ARN of the S3 bucket for document storage"
   type        = string
 }
 
-variable "database_url" {
-  description = "PostgreSQL connection string"
+variable "callback_url" {
+  description = "Callback URL for analysis results"
+  type        = string
+}
+
+variable "callback_secret" {
+  description = "Secret key for callback authentication"
   type        = string
   sensitive   = true
 }

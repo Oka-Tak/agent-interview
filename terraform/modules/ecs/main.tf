@@ -60,6 +60,7 @@ resource "aws_ecs_task_definition" "app" {
         { name = "OPENAI_API_KEY", valueFrom = "${local.ssm_prefix}/openai-api-key" },
         { name = "STRIPE_SECRET_KEY", valueFrom = "${local.ssm_prefix}/stripe-secret-key" },
         { name = "DOCUMENT_ANALYSIS_LAMBDA_ARN", valueFrom = "${local.ssm_prefix}/document-analysis-lambda-arn" },
+        { name = "ANALYSIS_CALLBACK_SECRET", valueFrom = "${local.ssm_prefix}/analysis-callback-secret" },
       ]
 
       logConfiguration = {
@@ -125,9 +126,9 @@ resource "aws_ecs_service" "main" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = var.private_subnet_ids
+    subnets          = var.public_subnet_ids
     security_groups  = [var.ecs_security_group_id]
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   load_balancer {

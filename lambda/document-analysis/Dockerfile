@@ -8,14 +8,11 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 # ==============================================================================
-# Stage 2: Build (Prisma generate + esbuild bundle)
+# Stage 2: Build (esbuild bundle)
 # ==============================================================================
 FROM deps AS builder
 
 WORKDIR /app
-COPY prisma ./prisma/
-RUN npx prisma generate
-
 COPY src ./src/
 COPY lambda ./lambda/
 COPY tsconfig.json ./
@@ -25,7 +22,6 @@ RUN npx esbuild lambda/document-analysis/handler.ts \
       --platform=node \
       --target=node22 \
       --outfile=dist/handler.js \
-      --external:@prisma/client \
       --external:pdf-to-img \
       --external:mammoth \
       --external:openai \
@@ -42,9 +38,5 @@ COPY --from=builder /app/dist/handler.js ${LAMBDA_TASK_ROOT}/dist/handler.js
 
 # Copy node_modules (runtime deps)
 COPY --from=builder /app/node_modules ${LAMBDA_TASK_ROOT}/node_modules
-
-# Copy Prisma schema + generated client
-COPY --from=builder /app/prisma ${LAMBDA_TASK_ROOT}/prisma
-COPY --from=builder /app/node_modules/.prisma ${LAMBDA_TASK_ROOT}/node_modules/.prisma
 
 CMD ["dist/handler.handler"]

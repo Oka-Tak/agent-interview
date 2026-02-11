@@ -92,3 +92,10 @@ resource "aws_ssm_parameter" "document_analysis_lambda_arn" {
   value = var.document_analysis_lambda_arn
   tags  = local.common_tags
 }
+
+resource "aws_ssm_parameter" "analysis_callback_secret" {
+  name  = "${local.prefix}/analysis-callback-secret"
+  type  = "SecureString"
+  value = var.analysis_callback_secret
+  tags  = local.common_tags
+}

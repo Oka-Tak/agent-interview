@@ -17,7 +17,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "lambda:build": "esbuild lambda/document-analysis/handler.ts --bundle --platform=node --target=node22 --outfile=lambda/document-analysis/dist/handler.js --external:@prisma/client --external:pdf-to-img --external:mammoth --external:openai --external:minio --external:pdfjs-dist"
+    "lambda:build": "esbuild lambda/document-analysis/handler.ts --bundle --platform=node --target=node22 --outfile=lambda/document-analysis/dist/handler.js --external:pdf-to-img --external:mammoth --external:openai --external:minio --external:pdfjs-dist"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",
