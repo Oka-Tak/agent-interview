@@ -380,39 +380,6 @@ export async function extractTextFromPdfWithVision(
   return validTexts.join("\n\n");
 }
 
-const matchScoreSchema = z.object({
-  score: z.number(),
-  reason: z.string(),
-});
-
-export async function generateMatchScore(
-  conversationSummary: string,
-  fragmentsSummary: string,
-): Promise<number | null> {
-  try {
-    const { output } = await generateText({
-      model: defaultModel,
-      messages: [
-        {
-          role: "system",
-          content: `あなたは採用のマッチング評価を行うアシスタントです。
-面接の会話内容と候補者のプロフィール情報を分析し、マッチ度を0-100のスコアで評価してください。`,
-        },
-        {
-          role: "user",
-          content: `面接会話:\n${conversationSummary}\n\n候補者情報:\n${fragmentsSummary}`,
-        },
-      ],
-      output: Output.object({ schema: matchScoreSchema }),
-      temperature: 0.3,
-    });
-
-    return output?.score ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export async function generateConversationSummary(
   conversationText: string,
   candidateName: string,

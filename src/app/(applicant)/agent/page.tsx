@@ -1,18 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { AgentPreviewDialog, FragmentList } from "@/components/agent";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
+  AgentCardPanel,
+  AgentPreviewDialog,
+  FragmentList,
+  SystemPromptEditor,
+} from "@/components/agent";
+import { Button } from "@/components/ui/button";
 
 interface AgentProfile {
   id: string;
@@ -38,7 +33,14 @@ export default function AgentPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [userName, setUserName] = useState<string>("");
-  const [avatarPath, setAvatarPath] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [cardPanelHeight, setCardPanelHeight] = useState<number | undefined>(
+    undefined,
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cardPanelRef = useRef<HTMLDivElement>(null);
 
   const fetchAgent = useCallback(async () => {
     try {
@@ -61,7 +63,7 @@ export default function AgentPage() {
       if (response.ok) {
         const data = await response.json();
         setUserName(data.settings.name);
-        setAvatarPath(data.settings.avatarPath);
+        setAvatarUrl(data.settings.avatarUrl ?? null);
       }
     } catch (error) {
       console.error("Failed to fetch user profile:", error);
@@ -72,6 +74,16 @@ export default function AgentPage() {
     fetchAgent();
     fetchUserProfile();
   }, [fetchAgent, fetchUserProfile]);
+
+  useEffect(() => {
+    const el = cardPanelRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setCardPanelHeight(entry.borderBoxSize[0].blockSize);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const handleGeneratePrompt = async () => {
     setIsGenerating(true);
@@ -133,173 +145,158 @@ export default function AgentPage() {
     }
   };
 
+  const uploadAvatar = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) return;
+    if (!file.type.startsWith("image/")) return;
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/applicant/avatar", {
+        method: "POST",
+        body: formData,
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAvatarUrl(data.avatarUrl);
+      }
+    } catch (error) {
+      console.error("Failed to upload avatar:", error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) uploadAvatar(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadAvatar(file);
+    e.target.value = "";
+  };
+
+  const allSkills = [...new Set(fragments.flatMap((f) => f.skills))];
+
   if (isLoading) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">読み込み中...</p>
+      <div className="flex items-center justify-center py-20">
+        <div className="size-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8">
+      {/* ヘッダー + アクション */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">エージェント設定</h1>
-          <p className="text-muted-foreground mt-2">
-            あなたを代理するAIエージェントの設定を行います
+          <h1 className="text-2xl font-bold tracking-tight">エージェント</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            あなたを代理するAIエージェントの管理
           </p>
         </div>
         {agent && (
-          <Badge
-            variant={agent.status === "PUBLIC" ? "default" : "outline"}
-            className="text-sm"
-          >
-            {agent.status === "PUBLIC" ? "公開中" : "非公開"}
-          </Badge>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsPreviewOpen(true)}
+            >
+              テスト
+            </Button>
+            <Button
+              size="sm"
+              variant={agent.status === "PUBLIC" ? "destructive" : "default"}
+              onClick={handleToggleStatus}
+              disabled={isUpdating}
+            >
+              {isUpdating
+                ? "更新中..."
+                : agent.status === "PUBLIC"
+                  ? "非公開にする"
+                  : "公開する"}
+            </Button>
+          </div>
         )}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>システムプロンプト</CardTitle>
-              <CardDescription>
-                エージェントの振る舞いを定義するプロンプトです
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {agent ? (
-                <>
-                  <Textarea
-                    value={agent.systemPrompt}
-                    onChange={(e) =>
-                      setAgent({ ...agent, systemPrompt: e.target.value })
-                    }
-                    className="min-h-[200px]"
-                    placeholder="エージェントのシステムプロンプト..."
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleUpdatePrompt(agent.systemPrompt)}
-                    >
-                      保存
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleGeneratePrompt}
-                      disabled={isGenerating}
-                    >
-                      {isGenerating ? "生成中..." : "再生成"}
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">
-                    エージェントがまだ作成されていません
-                  </p>
-                  <Button
-                    onClick={handleGeneratePrompt}
-                    disabled={isGenerating}
-                  >
-                    {isGenerating ? "生成中..." : "エージェントを生成"}
-                  </Button>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    AIチャットで収集した情報を元にエージェントを生成します
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {agent && (
-            <>
-              <Card>
-                <CardHeader>
-                  <CardTitle>プレビュー</CardTitle>
-                  <CardDescription>
-                    エージェントの動作を確認できます
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    onClick={() => setIsPreviewOpen(true)}
-                    variant="outline"
-                  >
-                    エージェントをテスト
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>公開設定</CardTitle>
-                  <CardDescription>
-                    エージェントを公開すると、採用担当者が面接できるようになります
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    onClick={handleToggleStatus}
-                    disabled={isUpdating}
-                    variant={
-                      agent.status === "PUBLIC" ? "destructive" : "default"
-                    }
-                  >
-                    {isUpdating
-                      ? "更新中..."
-                      : agent.status === "PUBLIC"
-                        ? "非公開にする"
-                        : "公開する"}
-                  </Button>
-                </CardContent>
-              </Card>
-            </>
-          )}
+      {/* 名刺 + プロンプト — 2カラム、高さ揃え */}
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
+        {/* 左: 名刺カード + 統計 */}
+        <div
+          ref={cardPanelRef}
+          className="flex flex-col p-6 rounded-xl border bg-card gap-5"
+        >
+          <AgentCardPanel
+            userName={userName}
+            avatarUrl={avatarUrl}
+            skills={allSkills}
+            agentStatus={agent?.status}
+            fragmentCount={fragments.length}
+            skillCount={allSkills.length}
+            isDragging={isDragging}
+            isUploading={isUploading}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onFileSelect={handleFileSelect}
+            fileInputRef={fileInputRef}
+          />
         </div>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">収集された記憶のかけら</CardTitle>
-              <CardDescription>AIチャットから抽出された情報</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FragmentList fragments={fragments} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">統計</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">記憶のかけら</span>
-                  <span className="font-medium">{fragments.length}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">スキル</span>
-                  <span className="font-medium">
-                    {new Set(fragments.flatMap((f) => f.skills)).size}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* 右: システムプロンプト — 左パネルの高さに揃えてスクロール */}
+        <div
+          className="flex flex-col p-6 rounded-xl border bg-card gap-4 min-h-0 overflow-hidden"
+          style={cardPanelHeight ? { height: cardPanelHeight } : undefined}
+        >
+          <SystemPromptEditor
+            prompt={agent ? agent.systemPrompt : null}
+            onChange={(value) =>
+              agent && setAgent({ ...agent, systemPrompt: value })
+            }
+            onSave={() => agent && handleUpdatePrompt(agent.systemPrompt)}
+            onGenerate={handleGeneratePrompt}
+            isGenerating={isGenerating}
+          />
         </div>
+      </div>
+
+      {/* 記憶のかけら */}
+      <div className="p-6 rounded-xl border bg-card space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold tracking-tight">記憶のかけら</p>
+            {fragments.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {fragments.length} 件
+              </p>
+            )}
+          </div>
+        </div>
+        <FragmentList fragments={fragments} />
       </div>
 
       <AgentPreviewDialog
         open={isPreviewOpen}
         onOpenChange={setIsPreviewOpen}
         userName={userName}
-        avatarPath={avatarPath}
+        avatarPath={avatarUrl}
       />
     </div>
   );

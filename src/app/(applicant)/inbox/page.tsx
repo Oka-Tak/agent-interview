@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { type MouseEvent, useCallback, useEffect, useState } from "react";
+import type { DirectMessage, InboxInterest } from "@/components/inbox";
+import { DirectMessageDialog, InboxInterestCard } from "@/components/inbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,73 +14,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-interface Interest {
-  id: string;
-  status: "EXPRESSED" | "CONTACT_REQUESTED" | "CONTACT_DISCLOSED" | "DECLINED";
-  message: string | null;
-  createdAt: string;
-  updatedAt: string;
-  recruiter: {
-    id: string;
-    companyName: string;
-  };
-  lastMessage: {
-    content: string;
-    senderType: "USER" | "RECRUITER";
-    createdAt: string;
-  } | null;
-  messageCount: number;
-}
+type FilterStatus =
+  | "ALL"
+  | "EXPRESSED"
+  | "CONTACT_REQUESTED"
+  | "CONTACT_DISCLOSED"
+  | "DECLINED";
 
-interface DirectMessage {
-  id: string;
-  content: string;
-  senderType: "USER" | "RECRUITER";
-  createdAt: string;
-  recruiter: { companyName: string } | null;
-  user: { name: string } | null;
-}
-
-const statusLabels: Record<
-  string,
-  {
-    label: string;
-    variant: "default" | "secondary" | "outline" | "destructive";
-  }
-> = {
-  EXPRESSED: { label: "興味表明", variant: "secondary" },
-  CONTACT_REQUESTED: { label: "連絡先リクエスト中", variant: "outline" },
-  CONTACT_DISCLOSED: { label: "連絡先開示済み", variant: "default" },
-  DECLINED: { label: "辞退", variant: "destructive" },
-};
+const filterOptions: { value: FilterStatus; label: string }[] = [
+  { value: "ALL", label: "すべて" },
+  { value: "EXPRESSED", label: "新着" },
+  { value: "CONTACT_REQUESTED", label: "リクエスト中" },
+  { value: "CONTACT_DISCLOSED", label: "開示済み" },
+  { value: "DECLINED", label: "辞退" },
+];
 
 export default function InboxPage() {
-  const [interests, setInterests] = useState<Interest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedInterest, setSelectedInterest] = useState<Interest | null>(
+  const [interests, setInterests] = useState<InboxInterest[]>([]);
+  const [agentStatus, setAgentStatus] = useState<"PUBLIC" | "PRIVATE" | null>(
     null,
   );
+  const [isLoading, setIsLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("ALL");
+  const [selectedInterest, setSelectedInterest] =
+    useState<InboxInterest | null>(null);
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [messageContent, setMessageContent] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -88,10 +50,34 @@ export default function InboxPage() {
   >({});
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
-  const [declineTarget, setDeclineTarget] = useState<Interest | null>(null);
+  const [declineTarget, setDeclineTarget] = useState<InboxInterest | null>(
+    null,
+  );
   const [declineError, setDeclineError] = useState<string | null>(null);
 
-  const fetchInterests = useCallback(async () => {
+  const fetchData = useCallback(async () => {
+    try {
+      const [inboxRes, agentRes] = await Promise.all([
+        fetch("/api/applicant/inbox"),
+        fetch("/api/agents/me"),
+      ]);
+
+      if (inboxRes.ok) {
+        const data = await inboxRes.json();
+        setInterests(data.interests);
+      }
+      if (agentRes.ok) {
+        const data = await agentRes.json();
+        setAgentStatus(data.agent?.status ?? null);
+      }
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const refreshInterests = useCallback(async () => {
     try {
       const response = await fetch("/api/applicant/inbox");
       if (response.ok) {
@@ -99,9 +85,7 @@ export default function InboxPage() {
         setInterests(data.interests);
       }
     } catch (error) {
-      console.error("Failed to fetch interests:", error);
-    } finally {
-      setIsLoading(false);
+      console.error("Failed to refresh interests:", error);
     }
   }, []);
 
@@ -120,8 +104,8 @@ export default function InboxPage() {
   }, []);
 
   useEffect(() => {
-    fetchInterests();
-  }, [fetchInterests]);
+    fetchData();
+  }, [fetchData]);
 
   useEffect(() => {
     if (selectedInterest) {
@@ -147,7 +131,7 @@ export default function InboxPage() {
       if (response.ok) {
         setMessageContent("");
         fetchMessages(selectedInterest.id);
-        fetchInterests(); // 最終メッセージを更新
+        refreshInterests();
       } else {
         const data = await response.json();
         setMessageError(data.error || "エラーが発生しました");
@@ -160,7 +144,7 @@ export default function InboxPage() {
     }
   };
 
-  const openMessageDialog = (interest: Interest) => {
+  const openMessageDialog = (interest: InboxInterest) => {
     setSelectedInterest(interest);
     setMessages([]);
     setMessageContent("");
@@ -192,7 +176,7 @@ export default function InboxPage() {
         return;
       }
 
-      await fetchInterests();
+      await refreshInterests();
     } catch (error) {
       console.error("Failed to approve disclosure:", error);
       setActionErrors((prev) => ({
@@ -226,7 +210,7 @@ export default function InboxPage() {
         return;
       }
 
-      await fetchInterests();
+      await refreshInterests();
       setDeclineTarget(null);
     } catch (error) {
       console.error("Failed to decline disclosure:", error);
@@ -236,309 +220,176 @@ export default function InboxPage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="size-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const newCount = interests.filter((i) => i.status === "EXPRESSED").length;
   const disclosedCount = interests.filter(
     (i) => i.status === "CONTACT_DISCLOSED",
   ).length;
 
+  const filteredInterests =
+    filterStatus === "ALL"
+      ? interests
+      : interests.filter((i) => i.status === filterStatus);
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-balance">受信箱</h1>
-        <p className="text-muted-foreground mt-2 text-pretty">
-          企業からの興味表明やメッセージを確認できます
-        </p>
-      </div>
-
-      <div className="grid md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>全体</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {interests.length}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>連絡先開示済み</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {disclosedCount}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>新規</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {interests.filter((i) => i.status === "EXPRESSED").length}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>メッセージ可能</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {disclosedCount}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      {isLoading ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground text-pretty">読み込み中...</p>
+    <div className="space-y-8">
+      {/* ヘッダー + インライン統計 */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">受信箱</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            企業からの関心を確認
+          </p>
         </div>
-      ) : interests.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <svg
-              className="size-12 mx-auto text-muted-foreground mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              />
-            </svg>
-            <p className="text-muted-foreground mb-2 text-pretty">
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="text-center p-2 rounded-lg bg-secondary/50">
+            <p className="text-base font-bold tabular-nums text-foreground">
+              {newCount}
+            </p>
+            <p className="text-[10px] text-muted-foreground">新着</p>
+          </div>
+          <div className="text-center p-2 rounded-lg bg-secondary/50">
+            <p className="text-base font-bold tabular-nums text-foreground">
+              {interests.length}
+            </p>
+            <p className="text-[10px] text-muted-foreground">全体</p>
+          </div>
+          <div className="text-center p-2 rounded-lg bg-secondary/50">
+            <p className="text-base font-bold tabular-nums text-foreground">
+              {disclosedCount}
+            </p>
+            <p className="text-[10px] text-muted-foreground">開示済み</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ステータスフィルタ */}
+      <div className="flex items-center gap-0 border-b">
+        {filterOptions.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => setFilterStatus(option.value)}
+            className={cn(
+              "px-3 pb-2.5 text-sm transition-colors -mb-px",
+              filterStatus === option.value
+                ? "text-foreground font-medium border-b-2 border-primary"
+                : "text-muted-foreground hover:text-foreground border-b-2 border-transparent",
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {/* コンテンツ */}
+      {interests.length === 0 ? (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="h-[2px] bg-gradient-to-r from-primary/60 via-primary to-primary/60" />
+          <div className="flex flex-col items-center justify-center py-16 space-y-3">
+            <div className="size-10 rounded-lg bg-secondary flex items-center justify-center">
+              <svg
+                className="size-5 text-muted-foreground"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                />
+              </svg>
+            </div>
+            <p className="text-sm text-muted-foreground text-center">
               まだ企業からの興味表明はありません
             </p>
-            <p className="text-sm text-muted-foreground text-pretty">
-              エージェントを公開すると、企業から興味表明を受け取れます
+            {agentStatus === "PUBLIC" ? (
+              <p className="text-xs text-muted-foreground text-center">
+                エージェントは公開中です — 企業からの反応をお待ちください
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground text-center">
+                  エージェントを公開すると、企業から興味表明を受け取れます
+                </p>
+                <Link href="/agent">
+                  <Button variant="outline" size="sm">
+                    エージェントを公開する
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      ) : filteredInterests.length === 0 ? (
+        <div className="rounded-xl border bg-card">
+          <div className="flex flex-col items-center justify-center py-16 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              該当するアイテムがありません
             </p>
-            <div className="mt-4">
-              <Link href="/agent">
-                <Button variant="outline" size="sm">
-                  エージェントを公開する
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : (
-        <div className="space-y-4">
-          {interests.map((interest) => (
-            <Card
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b">
+            <p className="text-[10px] tracking-widest text-muted-foreground uppercase">
+              インタレスト
+            </p>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {filteredInterests.length} 件
+            </p>
+          </div>
+          {filteredInterests.map((interest, index) => (
+            <InboxInterestCard
               key={interest.id}
-              className="hover:shadow-md transition-shadow"
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  <Avatar className="size-12">
-                    <AvatarFallback className="bg-primary text-white">
-                      {interest.recruiter.companyName[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold truncate text-balance">
-                        {interest.recruiter.companyName}
-                      </h3>
-                      <Badge
-                        variant={
-                          statusLabels[interest.status]?.variant || "secondary"
-                        }
-                      >
-                        {statusLabels[interest.status]?.label ||
-                          interest.status}
-                      </Badge>
-                    </div>
-                    {interest.message && (
-                      <p className="text-sm text-muted-foreground mb-2 line-clamp-2 text-pretty">
-                        {interest.message}
-                      </p>
-                    )}
-                    {interest.lastMessage && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-muted-foreground">
-                          {interest.lastMessage.senderType === "USER"
-                            ? "あなた"
-                            : interest.recruiter.companyName}
-                          :
-                        </span>
-                        <span className="truncate text-muted-foreground text-pretty">
-                          {interest.lastMessage.content}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                      <span className="tabular-nums">
-                        {new Date(interest.createdAt).toLocaleDateString(
-                          "ja-JP",
-                        )}
-                      </span>
-                      {interest.messageCount > 0 && (
-                        <span className="tabular-nums">
-                          {interest.messageCount}件のメッセージ
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {interest.status === "CONTACT_DISCLOSED" && (
-                      <Button
-                        size="sm"
-                        onClick={() => openMessageDialog(interest)}
-                      >
-                        メッセージ
-                      </Button>
-                    )}
-                    {interest.status === "CONTACT_REQUESTED" && (
-                      <>
-                        <select
-                          value={accessPreference[interest.id] || "NONE"}
-                          onChange={(e) =>
-                            setAccessPreference((prev) => ({
-                              ...prev,
-                              [interest.id]: e.target.value as
-                                | "NONE"
-                                | "ALLOW"
-                                | "DENY",
-                            }))
-                          }
-                          className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-                        >
-                          <option value="NONE">今回のみ</option>
-                          <option value="ALLOW">今後この企業は自動許可</option>
-                          <option value="DENY">今後この企業は自動拒否</option>
-                        </select>
-                        <Button
-                          size="sm"
-                          onClick={() => handleApproveDisclosure(interest.id)}
-                          disabled={isUpdating === interest.id}
-                        >
-                          開示する
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setDeclineTarget(interest);
-                            setDeclineError(null);
-                          }}
-                          disabled={isUpdating === interest.id}
-                        >
-                          辞退
-                        </Button>
-                      </>
-                    )}
-                    {interest.status === "EXPRESSED" && (
-                      <Button size="sm" variant="outline" disabled>
-                        リクエスト待ち
-                      </Button>
-                    )}
-                    {interest.status === "DECLINED" && (
-                      <Button size="sm" variant="outline" disabled>
-                        辞退
-                      </Button>
-                    )}
-                    {actionErrors[interest.id] && (
-                      <p
-                        className="text-xs text-destructive text-pretty"
-                        role="alert"
-                      >
-                        {actionErrors[interest.id]}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              interest={interest}
+              isLast={index === filteredInterests.length - 1}
+              accessPreference={accessPreference[interest.id] || "NONE"}
+              onAccessPreferenceChange={(value) =>
+                setAccessPreference((prev) => ({
+                  ...prev,
+                  [interest.id]: value,
+                }))
+              }
+              onApprove={handleApproveDisclosure}
+              onDecline={(i) => {
+                setDeclineTarget(i);
+                setDeclineError(null);
+              }}
+              onOpenMessages={openMessageDialog}
+              isUpdating={isUpdating === interest.id}
+              actionError={actionErrors[interest.id]}
+            />
           ))}
         </div>
       )}
 
-      <Dialog
+      {/* メッセージDialog */}
+      <DirectMessageDialog
         open={!!selectedInterest}
         onOpenChange={() => setSelectedInterest(null)}
-      >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedInterest?.recruiter.companyName}とのメッセージ
-            </DialogTitle>
-            <DialogDescription>
-              企業とメッセージのやり取りができます
-            </DialogDescription>
-          </DialogHeader>
+        title={`${selectedInterest?.recruiter.companyName}とのメッセージ`}
+        description="企業とメッセージのやり取りができます"
+        messages={messages}
+        messageContent={messageContent}
+        onMessageContentChange={setMessageContent}
+        onSend={handleSendMessage}
+        isSending={isSending}
+        messageError={messageError}
+        mySenderType="USER"
+        showInput={selectedInterest?.status === "CONTACT_DISCLOSED"}
+      />
 
-          <ScrollArea className="h-80 border rounded-lg p-4">
-            {messages.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8 text-pretty">
-                まだメッセージはありません
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={cn(
-                      "flex",
-                      message.senderType === "USER"
-                        ? "justify-end"
-                        : "justify-start",
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "max-w-[80%] rounded-lg px-4 py-2",
-                        message.senderType === "USER"
-                          ? "bg-primary text-white"
-                          : "bg-gray-100",
-                      )}
-                    >
-                      <p className="text-sm text-pretty">{message.content}</p>
-                      <p
-                        className={cn(
-                          "text-xs mt-1 tabular-nums",
-                          message.senderType === "USER"
-                            ? "text-white/70"
-                            : "text-muted-foreground",
-                        )}
-                      >
-                        {new Date(message.createdAt).toLocaleString("ja-JP")}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-
-          {selectedInterest?.status === "CONTACT_DISCLOSED" && (
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <Textarea
-                  placeholder="メッセージを入力..."
-                  value={messageContent}
-                  onChange={(e) => setMessageContent(e.target.value)}
-                  className="flex-1"
-                  rows={2}
-                />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={isSending || !messageContent.trim()}
-                >
-                  送信
-                </Button>
-              </div>
-              {messageError && (
-                <p
-                  className="text-xs text-destructive text-pretty"
-                  role="alert"
-                >
-                  {messageError}
-                </p>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
+      {/* 辞退確認AlertDialog */}
       <AlertDialog
         open={!!declineTarget}
         onOpenChange={(open: boolean) => {
@@ -570,7 +421,7 @@ export default function InboxPage() {
             </AlertDialogAction>
           </AlertDialogFooter>
           {declineError && (
-            <p className="text-xs text-destructive text-pretty" role="alert">
+            <p className="text-xs text-destructive" role="alert">
               {declineError}
             </p>
           )}
