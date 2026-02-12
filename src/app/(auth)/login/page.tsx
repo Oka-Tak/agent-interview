@@ -12,8 +12,7 @@ function MiniCard() {
     <div
       className="relative w-[260px] aspect-[1.75/1] rounded-xl border bg-card p-5 flex flex-col justify-between overflow-hidden"
       style={{
-        boxShadow:
-          "0 4px 24px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.02)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.02)",
       }}
     >
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary/50 via-primary to-primary/50" />
@@ -88,7 +87,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-dvh">
       {/* ブランドパネル — デスクトップのみ */}
-      <div className="hidden lg:flex lg:w-[480px] xl:w-[520px] shrink-0 bg-secondary/60 border-r flex-col items-center justify-center gap-8 px-12">
+      <div className="hidden lg:flex lg:w-2/5 shrink-0 bg-secondary/60 border-r flex-col items-center justify-center gap-8 px-12">
         <div className="text-center space-y-3">
           <p className="text-2xl font-bold tracking-tight text-foreground">
             Metalk
