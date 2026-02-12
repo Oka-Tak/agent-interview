@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -87,23 +88,31 @@ export default function ApplicantLayout({
   }
 
   return (
-    <div className="min-h-dvh bg-gray-50">
-      <header className="bg-white border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
+    <div className="min-h-dvh bg-background">
+      <header className="bg-card border-b sticky top-0 z-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-8">
               <Link
                 href="/dashboard"
-                className="text-xl font-bold text-primary"
+                className="inline-flex items-center"
+                aria-label="MeTalk"
               >
-                Agent Interview
+                <Image
+                  src="/logos/symbol+type.svg"
+                  alt="MeTalk"
+                  width={124}
+                  height={34}
+                  className="h-9 w-auto"
+                  priority
+                />
               </Link>
-              <nav className="hidden md:flex items-center gap-6">
+              <nav className="hidden md:flex items-center gap-1">
                 {navigation.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent px-3 py-1.5 rounded-md transition-colors"
                   >
                     {item.name}
                   </Link>
@@ -226,7 +235,9 @@ export default function ApplicantLayout({
           </div>
         </div>
       </header>
-      <main className="container mx-auto px-4 py-8">{children}</main>
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {children}
+      </main>
     </div>
   );
 }
